@@ -69,13 +69,9 @@
       ;; GC
       (w-foreign-values (vals :uint32 white-pixel :uint32 0)
 	(check (create-gc c gc id (+ GC-FOREGROUND GC-GRAPHICS-EXPOSURES) vals)))
-
-))
-
-
-
-  (defmethod destroy ((win window-direct))
-    (remhash (id win) windows )))
+)))
+(defmethod destroy ((win window-direct))
+  (remhash (id win) windows ))
 
 (defparameter *w* nil)
 
@@ -141,14 +137,15 @@
       ;; ostensibly, we finished drawing
       (xcb::flush c)
       )))
-(defun test-out (string win x y &key (pen *pen-white*))
+;;=============================================================================
+;; String output
+(defun test-out (string win x y &optional (pen *pen-white*))
   (let* ((slen (length string))
 	 (xbuflen (+ (ash slen 2) 8))) ;32 bits per char + head
     (with-foreign-object (xbuf :uint8 xbuflen)
       (setf (mem-ref xbuf :UINT32 0) slen ;composite character count
-	    (mem-ref xbuf :UINT16 4) x ;x
-	    (mem-ref xbuf :UINT16 6) y ;y
-	    ) 
+	    (mem-ref xbuf :UINT16 4) x 
+	    (mem-ref xbuf :UINT16 6) y ) 
       ;; set the glyphs
       (loop for i from 8 by 4
 	 for c across string do
@@ -158,27 +155,9 @@
 	      c OP-OVER (pen-pic pen)
 	      (pic win) +ARGB32+ (glyphset *font-normal*)
 	      0 0 xbuflen xbuf))
-      (flush c)))
-  )
+      (flush c))))
 
-(defun contest ()
-  (with-foreign-slots ((root root-visual white-pixel black-pixel
-			     root-depth) s (:struct screen-t))
-    (let ((foreground (generate-id c)))
-      (w-foreign-values (vals
-			 :uint32 black-pixel
-			 :uint32 0)
-	(check (create-gc c foreground (id *w*) (+ GC-FOREGROUND GC-GRAPHICS-EXPOSURES) vals)))
-      (flush c)
-      foreground)
-    ))
-(defun polytest ()
-  (w-foreign-values (vals
-		     :uint16 10 :uint16 10
-		     :uint16 100 :uint16 100)
-    (check (poly-line c COORD-MODE-ORIGIN (id *w*) *gc* 2 vals))
-    (flush c))
-  )
+
 ;;==================================
 ;; Initialize with (init)  -- see xcb-system.lisp
 ;;
