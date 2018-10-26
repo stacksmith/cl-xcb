@@ -26,10 +26,10 @@
   (remhash id windows))
 ;;------------------------------------------------------------------------------
 ;; retreive window's lisp object
-(defun window-object (id)
+(defun lisp-window (id)
   (gethash id windows))
 
-(declaim (inline window-object window-register window-unregister))
+;;(declaim (inline window-object window-register window-unregister))
 
 ;;=============================================================================
 ;; Global initialization
@@ -72,17 +72,22 @@
 	 :size 10))
   (ft2::get-loaded-advance (face *font-normal*) nil) )
 
-;;;;=============================================================================
+;;=============================================================================
 ;; event system initialization.
+;;
+;; The intial dispatch table is patched with simple handlers that crack the
+;; event structure as appropriate, lookup the Lisp window, and dispatch to
+;; Lisp methods for the window class.
+;;
 (defun in2 ()
   ;; prepare the event subsystem
   (event-dispatch-reset)
-  (event-push-handler EVENT-EXPOSE #'on-expose)
-  (event-push-handler EVENT-CLIENT-MESSAGE #'on-client-notify)
-  (event-push-handler EVENT-KEY-PRESS #'on-key-press)
-  (event-push-handler EVENT-CONFIGURE-NOTIFY #'on-configure-notify)
-  (event-push-handler EVENT-RESIZE-REQUEST #'on-resize-request)
-  (event-push-handler EVENT-DESTROY-NOTIFY #'on-destroy-notify)
+  (event-set-handler EVENT-EXPOSE           #'on-expose)
+  (event-set-handler EVENT-CLIENT-MESSAGE   #'on-client-notify)
+  (event-set-handler EVENT-KEY-PRESS        #'on-key-press)
+  (event-set-handler EVENT-CONFIGURE-NOTIFY #'on-configure-notify)
+  (event-set-handler EVENT-RESIZE-REQUEST   #'on-resize-request)
+  (event-set-handler EVENT-DESTROY-NOTIFY   #'on-destroy-notify)
  
 ;;  (event-push-handler EVENT-MAP-NOTIFY #'on-map-notify)
 ;  (setf *styles* (make-instance 'styles))
@@ -92,30 +97,33 @@
 (defun on-expose (event)
   (with-foreign-slots ((window x y width height count) event (:struct ES-EXPOSE))
    ;; (format t "ON-EXPOSE; count ~A.  ~A ~A ~A ~A~&" count x y width height)
-    (win-on-expose (gethash window windows) event)
+    (win-on-expose (lisp-window window) event)
     ))
 
+;;------------------------------------------------------------------------------
+;; RESIZE       - does not seem to work?
+;;
 (defun on-resize-request (event)
   (with-foreign-slots ((window width height) event (:struct ES-RESIZE-REQUEST))
     (format t "~%orreqc")
-    (win-on-resize (gethash window windows) width height)))
+    (win-on-resize (lisp-window window) width height)))
 
 ;;------------------------------------------------------------------------------
-;; Handle window closure
+;; Handle window closure, right here for now.
 (defun on-client-notify (e)
   (with-foreign-slots ((window type data) e (:struct ES-CLIENT-MESSAGE))
     (when (and (= type +WM-PROTOCOLS+ )
 	       (= data +WM-DELETE-WINDOW+))
       (check (destroy-window c window))
-      ;;(destroy (gethash window windows))
+      ;;(destroy (lisp-window window))
       t)))
-
+;;------------------------------------------------------------------------------
+;;
 (defun on-destroy-notify (e)
   (with-foreign-slots ((window ) e (:struct ES-DESTROY-NOTIFY))
-     (destroy (gethash window windows))
+     (destroy (lisp-window window))
 
-    t)
-  )
+    t))
 
 (defmethod win-on-key-press ((win t) key state))
 
@@ -130,15 +138,16 @@
    (with-foreign-slots (( window x y width height border-width response-type ) e (:struct ES-CONFIGURE-NOTIFY))
 ;;    (format t "CONF ~A ~&" response-type)
     (when (= 150 response-type)
-      (win-on-configure-notify (gethash window windows) e x y width height))
+      (win-on-configure-notify (lisp-window window) e x y width height))
     t))
 #||
 (defun on-resize-notify (e)
   (with-foreign-slots (( window x y width height border-width response-type ) e (:struct ES-CONFIGURE))
     (when (= 150 response-type)
-      (win-on-configure-notify (gethash window windows) e x y width height))
+      (win-on-configure-notify (lisp-window window) e x y width height))
     t))
 ||#
+
 
 ;;=============================================================================
 ;; create a picture
