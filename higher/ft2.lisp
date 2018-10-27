@@ -6,7 +6,16 @@
 ;;
 ;; The client provides glyph information as well.
 ;;
-;; The client must also track fonts
+;; The client must also track fonts.
+;;
+;; Currently this is done with a 1024-entry array for the low 1024 glyphs, and
+;; the rest is in a hashtable.
+;;
+;; TODO: rebuild the lost trie implementation:
+;; - 128-glyph (7-bit) tries;
+;; - low trie (ASCII) is on fast path;
+;; - rest are in a 3-level system: leaves contain 128 glyphs, 'page-tables'
+;;   128 pointers provide an on-demand access system.
 (defparameter gs nil)
 
 ;; missing from ft2 due to old age...

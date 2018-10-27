@@ -45,7 +45,27 @@
 (defmacro event-set-handler (i fun)
   `(setf  (aref *event-dispatch-table* ,i) ,fun))
 
+;;=============================================================================
+;; event system initialization.
+;;
+;; The intial dispatch table is patched with simple handlers that crack the
+;; event structure as appropriate, lookup the Lisp window, and dispatch to
+;; Lisp methods for the window class.
+;;
+(defun init-event-subsystem ()
+  ;; prepare the event subsystem
+  (event-dispatch-reset)
+  (event-set-handler EVENT-EXPOSE           #'on-expose)
+  (event-set-handler EVENT-CLIENT-MESSAGE   #'on-client-notify)
+  (event-set-handler EVENT-KEY-PRESS        #'on-key-press)
+  (event-set-handler EVENT-CONFIGURE-NOTIFY #'on-configure-notify)
+  (event-set-handler EVENT-RESIZE-REQUEST   #'on-resize-request)
+  (event-set-handler EVENT-DESTROY-NOTIFY   #'on-destroy-notify))
+;;============================================================================
+;; Dispatch
+;;
 (defun event-dispatch (event)
+  (declare (type simple-vector *event-dispatch-table* ))
   (let ((i (event-type event)))
    ;; (format *q* "~%(~A)~A: " ord (aref events i))
     (if (< i EVENT-LAST-EVENT)
@@ -53,19 +73,26 @@
 	(progn
 	  (format *q* "UNEXPECTED EVENT ~A~&" i)))
     (foreign-free event)))
-;;======================================================
-;;
+
+(defun event-step (&optional (block nil))
+  (let ((e (if block
+	       (wait-for-event c)
+	       (poll-for-event c))))
+    (unless (null-pointer-p e)
+      (event-dispatch e))))
 
 (defun steps (&optional (num 1))
-  (loop for i from 0 below (* num 10) do
-     ;;  (format t "...e...") (force-output)
+  (loop for i below num do
        (event-step)
   ;;     (nv:vin)
        (sleep 0.1)))
+
 (defun event-loop ()
-  (loop
-     until (zerop (hash-table-count windows))do
+  (loop until (zerop (hash-table-count windows)) do
        (event-step t)))
+
+(defun event-thread-proc ()
+  (loop while t do (event-step t)))
 
 ;;----------------------------------------------------------------
 #||(defun default-expose (e)
@@ -75,20 +102,7 @@
 	    window x y width height count)
     t))
 ||#
-;; dedicated blocking thread.
-#||
-;; TODO: fix me 
-(defun event-thread-proc ()
-  (loop while t do (event-step t)))
 
-(defun event-step (&optional (block nil))
-  (let ((e (if block
-	       (wait-for-event c)
-	       (poll-for-event c))))
-    (if (null-pointer-p e)
-	nil
-	(progn (event-dispatch e) t))))
-||#
 ;;================================================================
 ;; A simple unthreaded event processor
 ;; process all available events.  Return count of events processed.
@@ -98,3 +112,4 @@
      until (null-pointer-p e) do
        (event-dispatch e)
      finally (return i)))
+

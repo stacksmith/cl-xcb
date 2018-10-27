@@ -1,4 +1,9 @@
 (in-package :xcb)
+;;
+;; XCB-SYSTEM
+;;
+;; This ties it all together: event-handling subsystem resolves window handles
+;; to lisp objects and dispatches; initialization, etc.
 ;;=============================================================================
 ;; Global XCB data
 
@@ -12,8 +17,27 @@
 (defparameter +WM-PROTOCOLS+ nil)
 (defparameter +WM-DELETE-WINDOW+ nil)
 
+
+;;=============================================================================
+;; Global initialization
+;;
+;; Set up connection; get root data, pixel formats.  Prepare protocol atoms.
+(defun init-xcb ()
+  (setf c (connect (null-pointer)(null-pointer)))
+  (setf s (getf (setup-roots-iterator (get-setup c)) 'data))
+  (setf root-window (mem-ref s :uint32))
+  (let ((formats (util-query-formats c)))
+    (setf +RGB24+ (mem-ref (util-find-standard-format
+			  formats PICT-STANDARD-RGB-24) :uint32)
+	  +ARGB32+ (mem-ref (util-find-standard-format
+			   formats PICT-STANDARD-ARGB-32) :uint32)
+	  +WM-PROTOCOLS+ (easy-atom c "WM_PROTOCOLS")
+	  +WM-DELETE-WINDOW+ (easy-atom c "WM_DELETE_WINDOW"))))
+
+
+
 ;;==========================================================================
-;; window registration
+;; window registry
 ;;
 ;; global windows hashtable
 (defparameter windows (make-hash-table))
@@ -32,97 +56,43 @@
 ;;(declaim (inline window-object window-register window-unregister))
 
 ;;=============================================================================
-;; Global initialization
-;;
-;; Set up connection; get root data, pixel formats.  Prepare protocol atoms.
-(defun in1 ()
-  (setf c (connect (null-pointer)(null-pointer)))
-  (setf s (getf (setup-roots-iterator (get-setup c)) 'data))
-  (setf root-window (mem-ref s :uint32))
-  (let ((formats (util-query-formats c)))
-    (setf +RGB24+ (mem-ref (util-find-standard-format
-			  formats PICT-STANDARD-RGB-24) :uint32)
-	  +ARGB32+ (mem-ref (util-find-standard-format
-			   formats PICT-STANDARD-ARGB-32) :uint32)
-	  +WM-PROTOCOLS+ (easy-atom c "WM_PROTOCOLS")
-	  +WM-DELETE-WINDOW+ (easy-atom c "WM_DELETE_WINDOW"))))
-
-
-
-;;=============================================================================
 ;; Fonts
 (defparameter *font-path-normal* "fonts/DejaVuSansMono.ttf")
 (defparameter *font-path-bold* "fonts/DejaVuSansMono-Bold.ttf")
-
 (defparameter *font-normal* nil)
 (defparameter *font-bold* nil)
 
-;; session-global initialization...
-(defun init-fonts ()
-  (ft2init)
-  (setf *font-normal*
-	(make-instance
-	 'font :path
-	 (asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
-	 :size 10)
-	*font-bold*
-	(make-instance
-	 'font :path
-	 (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
-	 :size 10))
-  (ft2::get-loaded-advance (face *font-normal*) nil) )
-
-;;=============================================================================
-;; event system initialization.
-;;
-;; The intial dispatch table is patched with simple handlers that crack the
-;; event structure as appropriate, lookup the Lisp window, and dispatch to
-;; Lisp methods for the window class.
-;;
-(defun in2 ()
-  ;; prepare the event subsystem
-  (event-dispatch-reset)
-  (event-set-handler EVENT-EXPOSE           #'on-expose)
-  (event-set-handler EVENT-CLIENT-MESSAGE   #'on-client-notify)
-  (event-set-handler EVENT-KEY-PRESS        #'on-key-press)
-  (event-set-handler EVENT-CONFIGURE-NOTIFY #'on-configure-notify)
-  (event-set-handler EVENT-RESIZE-REQUEST   #'on-resize-request)
-  (event-set-handler EVENT-DESTROY-NOTIFY   #'on-destroy-notify)
- 
-;;  (event-push-handler EVENT-MAP-NOTIFY #'on-map-notify)
-;  (setf *styles* (make-instance 'styles))
-  )
 ;;------------------------------------------------------------------------------
 ;; Dispatch expose events via generic win-on-expose
 (defun on-expose (event)
   (with-foreign-slots ((window x y width height count) event (:struct ES-EXPOSE))
    ;; (format t "ON-EXPOSE; count ~A.  ~A ~A ~A ~A~&" count x y width height)
-    (win-on-expose (lisp-window window) event)
-    ))
+    (win-on-expose (lisp-window window) event)))
 
 ;;------------------------------------------------------------------------------
 ;; RESIZE       - does not seem to work?
 ;;
 (defun on-resize-request (event)
   (with-foreign-slots ((window width height) event (:struct ES-RESIZE-REQUEST))
-    (format t "~%orreqc")
     (win-on-resize (lisp-window window) width height)))
 
 ;;------------------------------------------------------------------------------
 ;; Handle window closure, right here for now.
 (defun on-client-notify (e)
+;;  (format t "on-client-notify")
   (with-foreign-slots ((window type data) e (:struct ES-CLIENT-MESSAGE))
     (when (and (= type +WM-PROTOCOLS+ )
 	       (= data +WM-DELETE-WINDOW+))
       (check (destroy-window c window))
+      (flush c)
       ;;(destroy (lisp-window window))
       t)))
 ;;------------------------------------------------------------------------------
 ;;
 (defun on-destroy-notify (e)
+;;  (format t "on-destroy-notify")
   (with-foreign-slots ((window ) e (:struct ES-DESTROY-NOTIFY))
      (destroy (lisp-window window))
-
     t))
 
 (defmethod win-on-key-press ((win t) key state))
@@ -131,7 +101,7 @@
   (with-foreign-slots ((detail state event) e (:struct ES-INPUT))
 ;;    (format t "KEYCODE ~X ~A state ~X ~&" detail detail state)
 ;;    (format t "WINDOW ~A ~&" event)
-    (win-on-key-press (gethash event windows) detail state))
+    (win-on-key-press (lisp-window event) detail state))
   t
   )
 (defun on-configure-notify (e)
@@ -170,12 +140,28 @@
 
 ;;=============================================================================
 ;; INIT
+;; session-global initialization...
+(defun init-fonts ()
+  (ft2init)
+  (setf *font-normal*
+	(make-instance
+	 'font :path
+	 (asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
+	 :size 10)
+	*font-bold*
+	(make-instance
+	 'font :path
+	 (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
+	 :size 10))
+  (ft2::get-loaded-advance (face *font-normal*) nil) )
+
 
 (defun init ()
-  (in1) ;; initialize XCB
-  (in2) ;; initialize event handling
-  (init-fonts) ;; 
-  (init-pens))
+  (init-xcb)
+  (init-event-subsystem) ;; see event-handling.lisp
+  (init-fonts)
+  (init-pens) ;; attributes.lisp
+  )
 
 
 

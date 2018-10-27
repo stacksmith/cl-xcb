@@ -42,11 +42,10 @@
 ||#
 ;;------------------------------------------------------------------------------
 (defun rgblist->64 (rgblist)
-  (declare (optimize (speed 3) (safety 0) (debug 0)))
-  (logior #xFFFF000000000000
-	  (ash (the (unsigned-byte 8) (first rgblist))   8)
-	  (ash (the (unsigned-byte 8) (second rgblist)) 24)
-	  (ash (the (unsigned-byte 8) (third rgblist))  40)))
+   (logior #xFFFF000000000000
+	     (ash (the (unsigned-byte 8) (first rgblist))   8)
+	     (ash (the (unsigned-byte 8) (second rgblist)) 24)
+	     (ash (the (unsigned-byte 8) (third rgblist))  40)))
 
 ;;==============================================================================
 ;; Attributes
