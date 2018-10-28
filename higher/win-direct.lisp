@@ -31,7 +31,7 @@
 ;;==================================
 ;; Initialize with (init)  -- see xcb-system.lisp
 ;;
-(defun wintest ()
+(defun test1 ()
   (make-instance 'win-direct :w 640 :h 480)
   (sleep 0.1)
   (events-process)(flush c)

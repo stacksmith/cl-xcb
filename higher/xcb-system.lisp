@@ -16,6 +16,18 @@
 
 (defparameter +WM-PROTOCOLS+ nil)
 (defparameter +WM-DELETE-WINDOW+ nil)
+;;-----------------------------------------------------------------------------
+;; win protocol
+(defgeneric win-on-configure-notify (win synth x y w h e))
+(defgeneric win-on-client-notify  (win type data0 e))
+(defgeneric win-on-destroy-notify (win)) 
+(defgeneric win-on-expose (win x y width height count event))
+(defgeneric win-on-resize (win w h))
+(defgeneric win-on-resize (win x y))
+(defgeneric win-on-key-press (win key state))
+
+;; synthetic
+(defgeneric win-destroy (win))
 
 
 ;;=============================================================================
@@ -167,6 +179,24 @@
 	 :size 10))
   (ft2::get-loaded-advance (face *font-normal*) nil) )
 
+;;=============================================================================
+;; comp-string
+(let ((xbuf (foreign-alloc :UINT8 :count (+ 1024 8) ))) ;; enough for 256 characters
+  (defun comp-string (pic x y penpic string font &optional (start 0)
+						   (end (length string)))
+     ;; set the glyphs
+    (let ((cnt (- end start)))
+      (setf (mem-ref xbuf :UINT32 0) cnt
+	    (mem-ref xbuf :UINT16 4) x 
+	    (mem-ref xbuf :UINT16 6) y )
+      (loop for i from 8 by 4
+	 for sindex from start below end do
+	   (setf (mem-ref xbuf :UINT32 i)
+		 (glyph-assure font (char-code (char string sindex)))))
+      (check (composite-glyphs-32
+	      c OP-OVER penpic
+	      pic +ARGB32+ (glyphset *font-normal*)
+	      0 0 cnt xbuf)))))
 
 (defun init ()
   (init-xcb)

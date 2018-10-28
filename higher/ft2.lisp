@@ -20,21 +20,19 @@
 
 ;; missing from ft2 due to old age...
 (defcfun ("FT_Library_SetLcdFilter" set-lcd-filter&) :uint32
- (library ft2::ft-library)
+  (library ft2::ft-library)
   (filter :uint32))
 
 (defparameter *xcb-context* nil)
 (defun ft2init ()
-  (let ((result  (set-lcd-filter& ft2::*library* 1)))
-    (setf *xcb-context* c)
-      ))
+  (set-lcd-filter& ft2::*library* 1)
+  (setf *xcb-context* c))
 
 (defclass font ()
   ((face :accessor face :initform nil)
    (glyphset :accessor glyphset :initform nil)
-   (map1k :accessor map1k :initform (make-array 1024
-						:element-type 'bit
-						:initial-element 0))
+   (map1k :accessor map1k
+	  :initform (make-array 1024 :element-type 'bit :initial-element 0))
    (mapbig :accessor mapbig :initform (make-hash-table )))
   )
 
@@ -62,12 +60,23 @@
 ;; Glyph cache check: all glyphs < 256 are loaded. <1024 are checked with a
 ;; bit vector map1k ; rest - mapbig hashtable
 ;;==============================================================================
+;; a quick inline check for code > 256.
+(declaim (inline glyph-assure))
+(defun glyph-assure (font code)
+  (declare (type fixnum code)
+	   (type font font))
+;;  (format *q* "GLYPH-ASSURE.  Thread: ~A; c is |~A|~&" (bt:current-thread) *xcb-context*)
+  (if (zerop (logand code #xFF))
+    (glyph-assure-long font code)
+    code))
+
 (defun glyph-assure-long (font code)
   (declare (type fixnum code))
   (declare (optimize (speed 3) (safety 0) (debug 0)))
   (with-slots (face glyphset map1k mapbig) font
+    (declare (type simple-bit-vector map1k))
     (if (zerop (logand code #xFFFC00))
-	(when (zerop (bit map1k code))
+	(when (zerop (aref map1k code))
 	  (load-glyph font code)
 	  (setf (bit map1k code) 1))
 	(unless (gethash code mapbig)
@@ -75,11 +84,12 @@
 	  (setf (gethash code mapbig) t)))
     code))
 
-(defun glyph-assure (font code)
-;;  (format *q* "GLYPH-ASSURE.  Thread: ~A; c is |~A|~&" (bt:current-thread) *xcb-context*)
-  (if (> code 256)
-       (glyph-assure-long font code )
-       code))
+(defun ttt (font z)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (declare (type fixnum z)
+	   (type font font))
+  (glyph-assure font z)
+  )
 
 #||
 ;; load a glyphset
