@@ -24,72 +24,49 @@
   (filter :uint32))
 
 (defparameter *xcb-context* nil)
+
 (defun ft2init ()
   (set-lcd-filter& ft2::*library* 1)
   (setf *xcb-context* c))
 
-(defclass font ()
-  ((face :accessor face :initform nil)
-   (glyphset :accessor glyphset :initform nil)
-   (map1k :accessor map1k
-	  :initform (make-array 1024 :element-type 'bit :initial-element 0))
-   (mapbig :accessor mapbig :initform (make-hash-table )))
-  )
+(defstruct (font(:constructor make-font%))
+  face glyphset pagemap)
 
+(defun make-font (&key path w h (hres 85) (yres 88))
+  (let ((glyphset (generate-id c))
+	(face (ft2:new-face path)))
+    (ft2:set-char-size face w h hres yres)
+    (check (create-glyph-set c glyphset +ARGB32+ ))
+    (let ((font
+	   (make-font%
+	    :face  face
+	    :glyphset glyphset
+	    :pagemap (make-array #x2000 :element-type 'bit :initial-element 0))))
+      (load-glyph-page font 32)
+      font)))
+
+	   
+#||
 (defmethod initialize-instance :after ((f font) &key path size)
   (with-slots (face glyphset) f
     (setf face (ft2:new-face path))
     (ft2:set-char-size face (* size 64)(* size 64) 85 88)
     
-    (setf glyphset (generate-id c))
+    (setf glyphset )
     (check (create-glyph-set c glyphset +ARGB32+ ))
     ;; low glyphs are always loaded
-    (loop for n from 32 to 127 do
+    (loop for n from 0 to 255 do
 	  (load-glyph f n))
       ;;      (load-glyph f gs 992)an
       ;;      (load-glyph f gs 994)
       ;;      (load-glyph f gs 1046)
 
     (values gs f)))
-
+||#
 (defmethod destroy ((f font))
   (with-slots (glyphset face) f
     (check (free-glyph-set c glyphset))
     (setf face nil)))
-;;==============================================================================
-;; Glyph cache check: all glyphs < 256 are loaded. <1024 are checked with a
-;; bit vector map1k ; rest - mapbig hashtable
-;;==============================================================================
-;; a quick inline check for code > 256.
-(declaim (inline glyph-assure))
-(defun glyph-assure (font code)
-  (declare (type fixnum code)
-	   (type font font))
-;;  (format *q* "GLYPH-ASSURE.  Thread: ~A; c is |~A|~&" (bt:current-thread) *xcb-context*)
-  (if (zerop (logand code #xFF))
-    (glyph-assure-long font code)
-    code))
-
-(defun glyph-assure-long (font code)
-  (declare (type fixnum code))
-  (declare (optimize (speed 3) (safety 0) (debug 0)))
-  (with-slots (face glyphset map1k mapbig) font
-    (declare (type simple-bit-vector map1k))
-    (if (zerop (logand code #xFFFC00))
-	(when (zerop (aref map1k code))
-	  (load-glyph font code)
-	  (setf (bit map1k code) 1))
-	(unless (gethash code mapbig)
-	  (load-glyph font code)
-	  (setf (gethash code mapbig) t)))
-    code))
-
-(defun ttt (font z)
-  (declare (optimize (speed 3) (safety 0) (debug 0)))
-  (declare (type fixnum z)
-	   (type font font))
-  (glyph-assure font z)
-  )
 
 #||
 ;; load a glyphset
@@ -173,17 +150,57 @@
       (declare (ignore unused))
       ;;(format *q* "WWWWW ~A ~A ~A ~&" (code-char code) (/ advance-x 64) (ft2::get-loaded-advance face nil))
       (w-foreign-values (pcode :uint32 code)
+;;	(format t "~%added glyph ~A" pcode)
 	(check (add-glyphs *xcb-context* glyphset  1 pcode  glyphinfo (* 4 w h) x-bitmap)))
       (foreign-free x-bitmap)
       (foreign-free glyphinfo)
       ;; mark glyph as loaded
-      
-      )))
+     )))
+
+;;==============================================================================
+;; Glyphs are loaded a page at a time, and each page has a bit in pagetable
+;; to indicate it's loaded.
+(defun load-glyph-page (font code)
+  (with-slots (pagemap) font
+      (setf (bit pagemap (ash code -8)) 1)
+      (loop for n from (logand code #x1FFF00) to (+ code 255) do
+	   (load-glyph font n))))
+;;------------------------------------------------------------------------------
+;; check the code to make sure it's loaded via the pagetable.
+(defun glyph-assure-long (font code)
+  (declare (type fixnum code)
+	   (type font font))
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (with-slots (pagemap) font
+    (declare (type simple-bit-vector pagemap))
+    (if (zerop (bit pagemap (ash code -8)))
+	(load-glyph-page font code))))
+;;-----------------------------------------------------------------------------
+;; GLYPH-ASSURE - a quick inline check for page0, which is always loaded.
+;; otherwise, we check pagetable via function call.
+(declaim (inline glyph-assure))
+
+(defun glyph-assure (font code)
+  (declare (type fixnum code)
+	   (type font font))
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+
+  (unless (< code 256)
+    (glyph-assure-long font code))
+  code)
 
 
 
 
 
+(defun ttt (font z)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (declare (type (unsigned-byte 32) z))
 
+  
 
-
+    
+  (glyph-assure font z)
+  (+ z 3)
+    
+  )

@@ -168,16 +168,16 @@
 (defun init-fonts ()
   (ft2init)
   (setf *font-normal*
-	(make-instance
-	 'font :path
-	 (asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
-	 :size 10)
+	(make-font
+	 :path(asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
+	 :w 640
+	 :h 640)
 	*font-bold*
-	(make-instance
-	 'font :path
-	 (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
-	 :size 10))
-  (ft2::get-loaded-advance (face *font-normal*) nil) )
+	(make-font
+	 :path (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
+	 :w 640
+	 :h 640))
+  (ft2::get-loaded-advance (font-face *font-normal*) nil) )
 
 ;;=============================================================================
 ;; comp-string
@@ -195,7 +195,7 @@
 		 (glyph-assure font (char-code (char string sindex)))))
       (check (composite-glyphs-32
 	      c OP-OVER penpic
-	      pic +ARGB32+ (glyphset *font-normal*)
+	      pic +ARGB32+ (font-glyphset *font-normal*)
 	      0 0 cnt xbuf)))))
 
 (defun init ()
