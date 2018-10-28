@@ -64,36 +64,33 @@
 
 ;;------------------------------------------------------------------------------
 ;; Dispatch expose events via generic win-on-expose
-(defun on-expose (event)
+(defun on-expose (event )
   (with-foreign-slots ((window x y width height count) event (:struct ES-EXPOSE))
    ;; (format t "ON-EXPOSE; count ~A.  ~A ~A ~A ~A~&" count x y width height)
-    (win-on-expose (lisp-window window) event)))
+    (win-on-expose (lisp-window window) x y width height count event)))
 
 ;;------------------------------------------------------------------------------
 ;; RESIZE       - does not seem to work?
 ;;
 (defun on-resize-request (event)
   (with-foreign-slots ((window width height) event (:struct ES-RESIZE-REQUEST))
-    (win-on-resize (lisp-window window) width height)))
+    (format t "~%RESIZE~~!~~")
+  ;;  (win-on-resize (lisp-window window) width height)
+    ))
 
 ;;------------------------------------------------------------------------------
 ;; Handle window closure, right here for now.
 (defun on-client-notify (e)
 ;;  (format t "on-client-notify")
-  (with-foreign-slots ((window type data) e (:struct ES-CLIENT-MESSAGE))
-    (when (and (= type +WM-PROTOCOLS+ )
-	       (= data +WM-DELETE-WINDOW+))
-      (check (destroy-window c window))
-      (flush c)
-      ;;(destroy (lisp-window window))
-      t)))
+  (with-foreign-slots ((window type data0) e (:struct ES-CLIENT-MESSAGE))
+    (win-on-client-notify (lisp-window window) type data0 e)))
 ;;------------------------------------------------------------------------------
 ;;
 (defun on-destroy-notify (e)
 ;;  (format t "on-destroy-notify")
   (with-foreign-slots ((window ) e (:struct ES-DESTROY-NOTIFY))
-     (destroy (lisp-window window))
-    t))
+     (win-on-destroy-notify (lisp-window window))))
+
 
 (defmethod win-on-key-press ((win t) key state))
 
@@ -102,14 +99,14 @@
 ;;    (format t "KEYCODE ~X ~A state ~X ~&" detail detail state)
 ;;    (format t "WINDOW ~A ~&" event)
     (win-on-key-press (lisp-window event) detail state))
-  t
   )
+;;---------------------------------------------------------------------------
+;;https://tronche.com/gui/x/xlib/events/window-state-change/configure.html
 (defun on-configure-notify (e)
-   (with-foreign-slots (( window x y width height border-width response-type ) e (:struct ES-CONFIGURE-NOTIFY))
-;;    (format t "CONF ~A ~&" response-type)
-    (when (= 150 response-type)
-      (win-on-configure-notify (lisp-window window) e x y width height))
-    t))
+  (with-foreign-slots (( window event x y width height border-width response-type override-redirect) e (:struct ES-CONFIGURE-NOTIFY))
+    (win-on-configure-notify (lisp-window window) (logbitp 7 response-type) 
+			     x y width height
+			     e) ))
 #||
 (defun on-resize-notify (e)
   (with-foreign-slots (( window x y width height border-width response-type ) e (:struct ES-CONFIGURE))
@@ -118,7 +115,22 @@
     t))
 ||#
 
-
+;;=============================================================================
+;; event system initialization.
+;;
+;; The intial dispatch table is patched with simple handlers that crack the
+;; event structure as appropriate, lookup the Lisp window, and dispatch to
+;; Lisp methods for the window class.
+;;
+(defun init-event-subsystem ()
+  ;; prepare the event subsystem
+  (event-dispatch-reset)
+  (event-set-handler EVENT-EXPOSE           #'on-expose)
+  (event-set-handler EVENT-CLIENT-MESSAGE   #'on-client-notify)
+  (event-set-handler EVENT-KEY-PRESS        #'on-key-press)
+  (event-set-handler EVENT-CONFIGURE-NOTIFY #'on-configure-notify)
+  (event-set-handler EVENT-RESIZE-REQUEST   #'on-resize-request)
+  (event-set-handler EVENT-DESTROY-NOTIFY   #'on-destroy-notify))
 ;;=============================================================================
 ;; create a picture
 (defun new-offscreen-picture (width height

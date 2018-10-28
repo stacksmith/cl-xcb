@@ -17,32 +17,32 @@
 (defconstant IN_ANY  32768)
 
 
-(defconstant EVENT-MASK-NO-EVENT  0)
-(defconstant EVENT-MASK-KEY-PRESS  1)
-(defconstant EVENT-MASK-KEY-RELEASE  2)
-(defconstant EVENT-MASK-BUTTON-PRESS  4)
-(defconstant EVENT-MASK-BUTTON-RELEASE  8)
-(defconstant EVENT-MASK-ENTER-WINDOW  16)
-(defconstant EVENT-MASK-LEAVE-WINDOW  32)
-(defconstant EVENT-MASK-POINTER-MOTION  64)
-(defconstant EVENT-MASK-POINTER-MOTION-HINT  128)
-(defconstant EVENT-MASK-BUTTON-1-MOTION  256)
-(defconstant EVENT-MASK-BUTTON-2-MOTION  512)
-(defconstant EVENT-MASK-BUTTON-3-MOTION  1024)
-(defconstant EVENT-MASK-BUTTON-4-MOTION  2048)
-(defconstant EVENT-MASK-BUTTON-5-MOTION  4096)
-(defconstant EVENT-MASK-BUTTON-MOTION       8192)
-(defconstant EVENT-MASK-KEYMAP-STATE       16384)
-(defconstant EVENT-MASK-EXPOSURE           32768)
-(defconstant EVENT-MASK-VISIBILITY-CHANGE  65536)
-(defconstant EVENT-MASK-STRUCTURE-NOTIFY  131072)
-(defconstant EVENT-MASK-RESIZE-REDIRECT  262144)
-(defconstant EVENT-MASK-SUBSTRUCTURE-NOTIFY  524288)
-(defconstant EVENT-MASK-SUBSTRUCTURE-REDIRECT  1048576)
-(defconstant EVENT-MASK-FOCUS-CHANGE  2097152)
-(defconstant EVENT-MASK-PROPERTY-CHANGE  4194304)
-(defconstant EVENT-MASK-COLOR-MAP-CHANGE  8388608)
-(defconstant EVENT-MASK-OWNER-GRAB-BUTTON  16777216)
+(defconstant EVENT-MASK-NO-EVENT                   0)
+(defconstant EVENT-MASK-KEY-PRESS                  1)
+(defconstant EVENT-MASK-KEY-RELEASE                2)
+(defconstant EVENT-MASK-BUTTON-PRESS               4)
+(defconstant EVENT-MASK-BUTTON-RELEASE             8)
+(defconstant EVENT-MASK-ENTER-WINDOW            #x10)
+(defconstant EVENT-MASK-LEAVE-WINDOW            #x20)
+(defconstant EVENT-MASK-POINTER-MOTION          #x40)
+(defconstant EVENT-MASK-POINTER-MOTION-HINT     #x80)
+(defconstant EVENT-MASK-BUTTON-1-MOTION        #x100)
+(defconstant EVENT-MASK-BUTTON-2-MOTION        #x200)
+(defconstant EVENT-MASK-BUTTON-3-MOTION        #x400)
+(defconstant EVENT-MASK-BUTTON-4-MOTION        #x800)
+(defconstant EVENT-MASK-BUTTON-5-MOTION       #x1000)
+(defconstant EVENT-MASK-BUTTON-MOTION           #x2000)
+(defconstant EVENT-MASK-KEYMAP-STATE            #x4000)
+(defconstant EVENT-MASK-EXPOSURE                #x8000)
+(defconstant EVENT-MASK-VISIBILITY-CHANGE      #x10000)
+(defconstant EVENT-MASK-STRUCTURE-NOTIFY       #x20000)
+(defconstant EVENT-MASK-RESIZE-REDIRECT        #x40000)
+(defconstant EVENT-MASK-SUBSTRUCTURE-NOTIFY    #x80000)
+(defconstant EVENT-MASK-SUBSTRUCTURE-REDIRECT #x100000)
+(defconstant EVENT-MASK-FOCUS-CHANGE          #x200000)
+(defconstant EVENT-MASK-PROPERTY-CHANGE       #x400000)
+(defconstant EVENT-MASK-COLOR-MAP-CHANGE      #x800000)
+(defconstant EVENT-MASK-OWNER-GRAB-BUTTON    #x1000000)
 
 (defconstant CW-BACK-PIXMAP        #x0001)
 (defconstant CW-BACK-PIXEL         #x0002)
@@ -308,8 +308,13 @@
   (sequence       :uint16)
   (window         window-t);;@4:
   (type           atom-t) ;; @8: WM-PROTOCOLS
-  (data           atom-t ;;:uint8 :count 20
-   ));; hmm
+  (data0           :UINT32) ;; TODO: union of 5 longs,10 shorts, 
+  (data1           :UINT32) ;; 20 uchars
+  (data2           :UINT32) 
+  (data3           :UINT32)
+  (data5           :UINT32) 
+ 
+		  );; hmm
 
 (defcstruct ES-MAPPING-NOTIFY
   (response-type  :uint8)

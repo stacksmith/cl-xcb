@@ -29,9 +29,9 @@
 ;;==========================================================================
 ;; default  - any unhandled events go here.
 ;;
-(defun default-event-handler (event-pointer)
+(defun default-event-handler (event)
   (when *show-unhandled-events*
-    (format *q* "~&[Unhandled event: ~A~&" (aref events (event-type event-pointer))))
+    (format *q* "~&[Unhandled event: ~A~&" (aref events (event-type event))))
   t )
 ;;------------------------------------------------------------------------------
 ;;
@@ -45,22 +45,7 @@
 (defmacro event-set-handler (i fun)
   `(setf  (aref *event-dispatch-table* ,i) ,fun))
 
-;;=============================================================================
-;; event system initialization.
-;;
-;; The intial dispatch table is patched with simple handlers that crack the
-;; event structure as appropriate, lookup the Lisp window, and dispatch to
-;; Lisp methods for the window class.
-;;
-(defun init-event-subsystem ()
-  ;; prepare the event subsystem
-  (event-dispatch-reset)
-  (event-set-handler EVENT-EXPOSE           #'on-expose)
-  (event-set-handler EVENT-CLIENT-MESSAGE   #'on-client-notify)
-  (event-set-handler EVENT-KEY-PRESS        #'on-key-press)
-  (event-set-handler EVENT-CONFIGURE-NOTIFY #'on-configure-notify)
-  (event-set-handler EVENT-RESIZE-REQUEST   #'on-resize-request)
-  (event-set-handler EVENT-DESTROY-NOTIFY   #'on-destroy-notify))
+
 ;;============================================================================
 ;; Dispatch
 ;;
@@ -69,7 +54,7 @@
   (let ((i (event-type event)))
    ;; (format *q* "~%(~A)~A: " ord (aref events i))
     (if (< i EVENT-LAST-EVENT)
-	(funcall (event-get-handler i) event)
+	(funcall (event-get-handler (logand #x7F i)) event)
 	(progn
 	  (format *q* "UNEXPECTED EVENT ~A~&" i)))
     (foreign-free event)))
