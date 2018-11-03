@@ -183,9 +183,10 @@
 	    (mem-ref xbuf :UINT16 6) y ) 
       ;; set the glyphs
       (loop for i from 8 by 4
-	 for c across string do
-	   (setf (mem-ref xbuf :UINT32 i)
-		 (glyph-assure *font-normal* (char-code c))))
+	 for c across string
+	 for code = (char-code c) do
+	   (setf (mem-ref xbuf :UINT32 i) code)
+	   (glyph-assure *font-normal* code))
       (check (composite-glyphs-32
 	      c OP-OVER (pen-pic pen)
 	      (pic win) +ARGB32+ (font-glyphset *font-normal*)

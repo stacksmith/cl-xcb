@@ -100,7 +100,7 @@
 		(values (or f (fg *w*))(or b (bg *w*)) bold underline))))
 	(values (fg *w*) (bg *w*) nil nil))))
 ||#
-
+#||
 (defstruct attr
   (font *font-normal* :type font )
   (fore (make-pen #xFFFFFFFFFFFFFFFF) :type pen)
@@ -109,3 +109,4 @@
 (defparameter *attr-normal* nil)
 (defun init-attrs ()
   (setf *attr-normal* (make-attr )))
+||#

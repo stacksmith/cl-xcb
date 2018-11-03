@@ -195,9 +195,11 @@
 	    (mem-ref xbuf :UINT16 4) x 
 	    (mem-ref xbuf :UINT16 6) y )
       (loop for i from 8 by 4
-	 for sindex from start below end do
-	   (setf (mem-ref xbuf :UINT32 i)
-		 (glyph-assure font (char-code (char string sindex)))))
+	 for sindex from start below end 
+	 for code = (char-code (char string sindex))
+	 do (setf (mem-ref xbuf :UINT32 i) code)
+	   (glyph-assure font code )
+	   )
       (check (composite-glyphs-32
 	      c OP-OVER penpic
 	      pic +ARGB32+ (font-glyphset *font-normal*)
@@ -208,7 +210,7 @@
   (init-event-subsystem) ;; see event-handling.lisp
   (init-fonts)
   (init-pens) ;; attributes.lisp
-  (init-attrs)
+;;  (init-attrs)
   )
 
 

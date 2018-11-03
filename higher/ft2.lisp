@@ -30,7 +30,8 @@
   (setf *xcb-context* c))
 
 (defstruct (font(:constructor make-font%))
-  face glyphset pagemap)
+  face glyphset pagemap
+  toy-advance)
 
 (defun make-font (&key path w h (hres 85) (yres 88))
   (let ((glyphset (generate-id c))
@@ -41,7 +42,8 @@
 	   (make-font%
 	    :face  face
 	    :glyphset glyphset
-	    :pagemap (make-array #x2000 :element-type 'bit :initial-element 0))))
+	    :pagemap (make-array #x2000 :element-type 'bit :initial-element 0)
+	    :toy-advance (ft2:get-advance face #\w))))
       (load-glyph-page font 32)
       font)))
 
@@ -187,7 +189,7 @@
 
   (unless (< code 256)
     (glyph-assure-long font code))
-  code)
+  (font-toy-advance font))
 
 
 
