@@ -18,18 +18,17 @@
    (resized :accessor resized :initform 0) ;; from window motion
    
    (gc     :accessor gc     :initform nil)))
-
-(defmethod initialize-instance :after ((win win-base) &key w h &allow-other-keys)
-  (setf *w* win)
-  (with-slots ( id gc width height) win
-    (setf width w
-	  height h)
-    (with-foreign-slots ((root root-visual white-pixel black-pixel
-			       root-depth) s (:struct screen-t))
-      ;; WINDOW
-      (setf id (generate-id c)) ;; window id
+;;-------------------------------------------------------------------------
+;; called by window's initialize-instance to create the window.  This
+;; default one.  Each window may have a different one specified at creation
+(defun win-make-window (win)
+ )
+;; This method ensures that the class win-make-xcb-window will be called.
+(defmethod win-make-xcb-window ((win win-base))
+  (with-slots (width height id) win
+    (with-foreign-slots ((root root-visual) s (:struct screen-t))
       (w-foreign-values (vals
-			 :uint32 black-pixel
+			 ;;:uint32 black-pixel
 			 :uint32 GRAVITY-NORTH-WEST ;; Leave contents on resize.
 			 :uint32 (+ EVENT-MASK-EXPOSURE
 				    EVENT-MASK-STRUCTURE-NOTIFY
@@ -41,21 +40,44 @@
 			      0 0 width height 10
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
-			      (+ CW-BACK-PIXEL CW-BIT-GRAVITY  CW-EVENT-MASK   ) vals)))
+			      (+ ;;CW-BACK-PIXEL
+				 CW-BIT-GRAVITY  CW-EVENT-MASK   ) vals))
+	))))
+(defmethod initialize-instance :after ((win win-base)
+				       &key w h
+					 maker 
+					 &allow-other-keys)
+  (setf *w* win)
+  (format t "~%init-instance of ~A "win)
+  (with-slots ( id gc width height) win
+    (setf width w
+	  height h)
+    (with-foreign-slots ((root root-visual white-pixel black-pixel
+			       root-depth) s (:struct screen-t))
+      ;; WINDOW
+      (setf id (generate-id c)) ;; window id
+      (if maker
+	  (funcall maker win)
+	  (win-make-xcb-window win))
+  
+      
       ;; windows get registered
       (window-register id win)
       ;; Make it deletable
       (w-foreign-values (patom :uint32 +WM-DELETE-WINDOW+)
-	(check (change-property c PROP-MODE-REPLACE id +WM-PROTOCOLS+
-				4 32 1 patom)))
+	(check (change-property c PROP-MODE-REPLACE id +WM-PROTOCOLS+				4 32 1 patom))
+	)
       ;; GC
       (setf gc (generate-id c))
-      (w-foreign-values (vals :uint32 white-pixel :uint32 0)
-	(check (create-gc c gc id (+ GC-FOREGROUND GC-GRAPHICS-EXPOSURES) vals))))
+      (w-foreign-values (vals :uint32 white-pixel
+			      :uint32 0)
+	(check (create-gc c gc id (+ GC-FOREGROUND    GC-GRAPHICS-EXPOSURES) vals))
+	))
 
-      (map-window c id)      
-      (flush c)
-      win))
+    (map-window c id)
+    (format t "mapped")
+    (flush c)
+    win))
 ;;==============================================================================
 ;; 
 (defmethod win-on-destroy-notify ((win win-base))
@@ -123,7 +145,7 @@
  )
 ;;------------------------------------------------------------------------------
 (defmethod win-on-expose ((win win-base) x y width height count event)
-      
+  ;;(clear-area c 0 (id win) x y width height)
   (win-redraw win x y width height)
   
   )

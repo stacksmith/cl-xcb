@@ -2,9 +2,11 @@
 
 ;;============================================================================
 ;; A Pen is an xrender picture 1x1 along with a 64-bit #xAAAABBBBGGGGRRRR.
-(defstruct pen abgr64 pic)
+(defstruct (pen (:constructor make-pen%))
+  abgr64 pic)
 
-(defun pen-create (abgr64)
+
+(defun make-pen (abgr64)
 ;;  (format *q* "attributes:createing pen ~A~&" abgr64)
   (with-ids (pixmap picture)
     (check (create-pixmap c 32 pixmap root-window 1 1))
@@ -15,15 +17,8 @@
     (w-foreign-values (rect :int16 0 :int16 0 :uint16 1 :uint16 1)
       (check (fill-rectangles c OP-SRC picture abgr64 1 rect)))
     (check (free-pixmap c pixmap));; since it never changes?
-    (make-pen :abgr64 abgr64 :pic picture)))
+    (make-pen% :abgr64 abgr64 :pic picture)))
 
-(defparameter *pen-black* nil)
-(defparameter *pen-white* nil)
-
-(defun init-pens ()
-  (setf *pen-black* (pen-create #xFFFF000000000000)
-	*pen-white* (pen-create #xFFFFFFFFFFFFFFFF)
-	))
 
 ;;------------------------------------------------------------------------------
 ;; pen-from-lemcolor (which may be "Red" or "#FF0012" or nil.
@@ -46,6 +41,15 @@
 	     (ash (the (unsigned-byte 8) (first rgblist))   8)
 	     (ash (the (unsigned-byte 8) (second rgblist)) 24)
 	     (ash (the (unsigned-byte 8) (third rgblist))  40)))
+
+(defparameter *pen-black* nil)
+(defparameter *pen-white* nil)
+
+(defun init-pens ()
+  (setf *pen-black* (make-pen #xFFFF000000000000)
+	*pen-white* (make-pen #xFFFFFFFFFFFFFFFF)
+	))
+
 
 ;;==============================================================================
 ;; Attributes
@@ -96,3 +100,12 @@
 		(values (or f (fg *w*))(or b (bg *w*)) bold underline))))
 	(values (fg *w*) (bg *w*) nil nil))))
 ||#
+
+(defstruct attr
+  (font *font-normal* :type font )
+  (fore (make-pen #xFFFFFFFFFFFFFFFF) :type pen)
+  (back (make-pen #xFFFF000000000000) :type pen))
+
+(defparameter *attr-normal* nil)
+(defun init-attrs ()
+  (setf *attr-normal* (make-attr )))

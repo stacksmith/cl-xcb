@@ -74,6 +74,26 @@
 (defparameter *font-normal* nil)
 (defparameter *font-bold* nil)
 
+(defparameter *fonts* (make-array 256 :initial-element nil))
+;;=============================================================================
+(defun init-fonts ()
+  (ft2init)
+  (setf *font-normal*
+	(make-font
+	 :path(asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
+	 :w 640
+	 :h 640)
+	*font-bold*
+	(make-font
+	 :path (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
+	 :w 640
+	 :h 640))
+  (ft2::get-loaded-advance (font-face *font-normal*) nil)
+
+  (setf (aref *fonts* 0) *font-normal*
+	(aref *fonts* 1) *font-bold*)
+  )
+
 ;;------------------------------------------------------------------------------
 ;; Dispatch expose events via generic win-on-expose
 (defun on-expose (event )
@@ -162,22 +182,7 @@
     (check (fill-rectangles c OP-OVER picture color 1 rect))))
 
 
-;;=============================================================================
-;; INIT
-;; session-global initialization...
-(defun init-fonts ()
-  (ft2init)
-  (setf *font-normal*
-	(make-font
-	 :path(asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
-	 :w 640
-	 :h 640)
-	*font-bold*
-	(make-font
-	 :path (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
-	 :w 640
-	 :h 640))
-  (ft2::get-loaded-advance (font-face *font-normal*) nil) )
+
 
 ;;=============================================================================
 ;; comp-string
@@ -203,6 +208,7 @@
   (init-event-subsystem) ;; see event-handling.lisp
   (init-fonts)
   (init-pens) ;; attributes.lisp
+  (init-attrs)
   )
 
 
