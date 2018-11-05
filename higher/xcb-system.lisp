@@ -210,6 +210,7 @@
   (init-event-subsystem) ;; see event-handling.lisp
   (init-fonts)
   (init-pens) ;; attributes.lisp
+  (init-styles)
 ;;  (init-attrs)
   )
 

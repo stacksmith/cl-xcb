@@ -8,6 +8,9 @@
 ;;
 ;; The client must also track fonts.
 ;;
+;; Note: for conversion, the bitmap is wider than expected to accomodate
+;; antialiasing edges...
+;;
 ;; Currently this is done with a 1024-entry array for the low 1024 glyphs, and
 ;; the rest is in a hashtable.
 ;;
@@ -31,6 +34,7 @@
 
 (defstruct (font(:constructor make-font%))
   face glyphset pagemap
+  ascender descender underline-position underline-thickness
   toy-advance)
 
 (defun make-font (&key path w h (hres 85) (yres 88))
@@ -38,18 +42,36 @@
 	(face (ft2:new-face path)))
     (ft2:set-char-size face w h hres yres)
     (check (create-glyph-set c glyphset +ARGB32+ ))
-    (let ((font
-	   (make-font%
-	    :face  face
-	    :glyphset glyphset
-	    :pagemap (make-array #x2000 :element-type 'bit :initial-element 0)
-	    :toy-advance (ft2:get-advance face #\w))))
+    
+    (let* ((metrics (ft2::ft-size-metrics (ft2::ft-face-size face)))
+	   (x-scale (ft2::ft-size-metrics-x-scale metrics) )
+	   (y-scale (ft2::ft-size-metrics-y-scale metrics))
+	   ;; TODO:
+	   (font
+	    (make-font%
+	     :face  face
+	     :glyphset glyphset
+	     :pagemap (make-array #x2000 :element-type 'bit :initial-element 0)
+	     :toy-advance  (floor (ft2:get-advance face #\w))
+	     :ascender (/ (ft2::ft-size-metrics-ascender metrics) 64)
+	     :descender (/ (ft2::ft-size-metrics-descender metrics) 64)
+	     :underline-position (/ (* y-scale (ft2::ft-face-underline-position face)) (* 64 #x10000))
+	     :underline-thickness (/ (ft2::ft-face-underline-thickness face) 64)
+	     )))
       (load-glyph-page font 32)
       font)))
 
-	   
+
 #||
-(defmethod initialize-instance :after ((f font) &key path size)
+(let ()
+    (values (ft-26dot6-to-float (ft-size-metrics-x-ppem metrics))
+            (ft-26dot6-to-float (ft-size-metrics-y-ppem metrics))
+            (ft-26dot6-to-float (ft-size-metrics-x-scale metrics))
+            (ft-26dot6-to-float (ft-size-metrics-y-scale metrics))
+            (ft-26dot6-to-float (ft-size-metrics-ascender metrics))
+            (ft-26dot6-to-float (ft-size-metrics-descender metrics))
+            (ft-26dot6-to-float (ft-size-metrics-height metrics))
+            (ft-26dot6-to-float (ft-size-metrics-max-advance metrics))))(defmethod initialize-instance :after ((f font) &key path size)
   (with-slots (face glyphset) f
     (setf face (ft2:new-face path))
     (ft2:set-char-size face (* size 64)(* size 64) 85 88)
@@ -148,25 +170,58 @@
 	   (source         (ft2::ft-bitmap-buffer bitmap))
 	   ;;	 (qqq  (format t "~A: ~A, ~A ~A ~A ~A~&" code advance-x w h s-pitch source))
 	   (x-bitmap  (make-glyph-bitmap source w h s-pitch))
-	   (glyphinfo (make-glyphinfo w h (- left)  top (/ advance-x 64) 0)))
-      (declare (ignore unused))
-      ;;(format *q* "WWWWW ~A ~A ~A ~&" (code-char code) (/ advance-x 64) (ft2::get-loaded-advance face nil))
-      (w-foreign-values (pcode :uint32 code)
-;;	(format t "~%added glyph ~A" pcode)
-	(check (add-glyphs *xcb-context* glyphset  1 pcode  glyphinfo (* 4 w h) x-bitmap)))
-      (foreign-free x-bitmap)
-      (foreign-free glyphinfo)
-      ;; mark glyph as loaded
-     )))
+)
+      (let* ((metrics (ft2::ft-glyphslot-metrics glyphslot))
+	     ;; OK.  So technically, metrics should give better positioning, no?
+	     ;; In practice, very similar.  But see for yourself.
+;;	     (glyphinfo (make-glyphinfo w h (- left)  top (/ advance-x 64) 0)) 
+	     (glyphinfo (make-glyphinfo
+		    w h
+		    (- (/ (ft2::ft-glyph-metrics-hori-bearing-x metrics) 64))
+		    (/ (ft2::ft-glyph-metrics-hori-bearing-y metrics) 64)
+		    (/ advance-x 64) 0)))
+	(declare (ignore unused))
+	;;----------------------
+#||	(format t "~%-------------..~A:" (code-char code) )
+	(format t "~% as stored (~A,~A) w:~A h:~A advance:~A"
+		(- left) top w h (/ advance-x 64))   
+	;; some metrics
+	
+	(format t "~% metrics w ~A  h ~A"
+		(/ (ft2::ft-glyph-metrics-width metrics) 64)
+		(/ (ft2::ft-glyph-metrics-height metrics) 64))
 
-;;==============================================================================
-;; Glyphs are loaded a page at a time, and each page has a bit in pagetable
-;; to indicate it's loaded.
+	  ;;	(format t "~%         (~A,~A) w:~A h:~A ")
+
+	(format t "~% bearing (~A:~A) adv ~A"
+		(/ (ft2::ft-glyph-metrics-hori-bearing-x metrics) 64)
+		(/ (ft2::ft-glyph-metrics-hori-bearing-y metrics) 64)
+		(/ (ft2::ft-glyph-metrics-hori-advance metrics) 64))
+||#
+	
+	#||	(format t "~% vert (~A:~A) ~A"
+	(/ (ft2::ft-glyph-metrics-vert-bearing-x metrics) 64)
+	(/ (ft2::ft-glyph-metrics-vert-bearing-y metrics) 64)
+	(/ (ft2::ft-glyph-metrics-vert-advance metrics) 64)) ||#
+	
+	;;(format *q* "WWWWW ~A ~A ~A ~&" (code-char code) (/ advance-x 64) (ft2::get-loaded-advance face nil))
+	(w-foreign-values (pcode :uint32 code)
+	  ;;	(format t "~%added glyph ~A" pcode)
+	  (check (add-glyphs *xcb-context* glyphset  1 pcode  glyphinfo (* 4 w h) x-bitmap)))
+	(foreign-free x-bitmap)
+	(foreign-free glyphinfo)
+	;; mark glyph as loaded
+	)))
+
+  ;;==============================================================================
+  ;; Glyphs are loaded a page at a time, and each page has a bit in pagetable
+  ;; to indicate it's loaded.
+)
 (defun load-glyph-page (font code)
   (with-slots (pagemap) font
-      (setf (bit pagemap (ash code -8)) 1)
-      (loop for n from (logand code #x1FFF00) to (+ code 255) do
-	   (load-glyph font n))))
+    (setf (bit pagemap (ash code -8)) 1)
+    (loop for n from (logand code #x1FFF00) to (+ code 255) do
+	 (load-glyph font n))))
 ;;------------------------------------------------------------------------------
 ;; check the code to make sure it's loaded via the pagetable.
 (defun glyph-assure-long (font code)
@@ -180,7 +235,7 @@
 ;;-----------------------------------------------------------------------------
 ;; GLYPH-ASSURE - a quick inline check for page0, which is always loaded.
 ;; otherwise, we check pagetable via function call.
-(declaim (inline glyph-assure))
+(declaim (notinline glyph-assure))
 
 (defun glyph-assure (font code)
   (declare (type fixnum code)
@@ -189,6 +244,7 @@
 
   (unless (< code 256)
     (glyph-assure-long font code))
+  
   (font-toy-advance font))
 
 

@@ -44,11 +44,47 @@
 
 (defparameter *pen-black* nil)
 (defparameter *pen-white* nil)
+(defparameter *pen-trans* nil)
 
 (defun init-pens ()
   (setf *pen-black* (make-pen #xFFFF000000000000)
 	*pen-white* (make-pen #xFFFFFFFFFFFFFFFF)
-	))
+	*pen-trans* (make-pen #x0000000000000000)))
+
+(defstruct style
+  (font nil :type font)
+  (fore nil :type pen)
+  (back nil :type pen))
+
+(defparameter *styles* (make-array 256 :initial-element nil))
+(defparameter *styles-init*
+  `((,*font-normal*  0 0)                 ;0 transparent space
+    (,*font-normal*  #xFFFFFFFFFFFFFFFF 0);1 white
+    (,*font-normal*  #xFFFF6262C1C12C2C 0);2 emerald text
+    (,*font-normal*  #xFFFFFFFF00000000 0);3 blue - literal
+    (,*font-normal*  #xFFFF0F004300BD00 0);4 tia maria - string
+   
+    )
+  )
+
+(defconstant style-space 0)
+(defconstant style-paren 1)
+(defconstant style-symbol 2)
+(defconstant style-literal 3)
+(defconstant style-string 4)
+
+
+
+(defun init-styles ()
+  (setf *styles*
+	   (make-array
+	    (length *styles-init*)
+	    :initial-contents
+	    (loop for ilist in *styles-init*
+	       collect (make-style
+			:font (car ilist)
+			:fore (make-pen (cadr ilist))
+			:back (make-pen (caddr ilist)))))))
 
 
 ;;==============================================================================
