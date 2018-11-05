@@ -56,7 +56,7 @@
 	     :ascender (/ (ft2::ft-size-metrics-ascender metrics) 64)
 	     :descender (/ (ft2::ft-size-metrics-descender metrics) 64)
 	     :underline-position (/ (* y-scale (ft2::ft-face-underline-position face)) (* 64 #x10000))
-	     :underline-thickness (/ (ft2::ft-face-underline-thickness face) 64)
+	     :underline-thickness (/ (* y-scale (ft2::ft-face-underline-thickness face)) (* #x10000 64))
 	     )))
       (load-glyph-page font 32)
       font)))
@@ -174,13 +174,15 @@
       (let* ((metrics (ft2::ft-glyphslot-metrics glyphslot))
 	     ;; OK.  So technically, metrics should give better positioning, no?
 	     ;; In practice, very similar.  But see for yourself.
-;;	     (glyphinfo (make-glyphinfo w h (- left)  top (/ advance-x 64) 0)) 
-	     (glyphinfo (make-glyphinfo
+	     (glyphinfo (make-glyphinfo w h (- left)  top (/ advance-x 64) 0)) 
+#||	     (glyphinfo (make-glyphinfo
 		    w h
 		    (- (/ (ft2::ft-glyph-metrics-hori-bearing-x metrics) 64))
 		    (/ (ft2::ft-glyph-metrics-hori-bearing-y metrics) 64)
-		    (/ advance-x 64) 0)))
-	(declare (ignore unused))
+		    (/ advance-x 64) 0))
+	     ||#
+	     )
+;;	(declare (ignore unused))
 	;;----------------------
 #||	(format t "~%-------------..~A:" (code-char code) )
 	(format t "~% as stored (~A,~A) w:~A h:~A advance:~A"

@@ -14,12 +14,13 @@
 	       (:file "higher/ft2")
 	       (:file "higher/event-handling")
 	       (:file "higher/xcb-system")
-	       (:file "higher/attributes")
+;;	       (:file "higher/attributes")
 	       (:file "higher/win-base")
 	       (:file "higher/win-direct")
-;;	       (:file "higher/window-double")
-;;	       (:file "higher/geometry")
-	     ;;  (:file "higher/lemwin")
+
+	       (:file "display/attributes")
+	       (:file "display/chunk")
+	       (:file "display/display")
 	 
 
 	        ))

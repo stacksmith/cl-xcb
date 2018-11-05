@@ -1,5 +1,37 @@
 (in-package :xcb)
 
+;;=============================================================================
+;; Fonts 
+(defparameter *font-path-normal* "fonts/DejaVuSansMono.ttf")
+(defparameter *font-path-bold* "fonts/DejaVuSansMono-Bold.ttf")
+(defparameter *font-normal* nil)
+(defparameter *font-bold* nil)
+
+(defparameter *fonts* (make-array 256 :initial-element nil))
+
+(defconstant  +font-normal+ 0)
+(defconstant  +font-bold+ 1)
+;;=============================================================================
+(defun init-fonts ()
+  (ft2init)
+  (setf *font-normal*
+	(make-font
+	 :path(asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
+	 :w 640
+	 :h 640)
+	*font-bold*
+	(make-font
+	 :path (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
+	 :w 640
+	 :h 640))
+  (ft2::get-loaded-advance (font-face *font-normal*) nil)
+
+  (setf (aref *fonts* +font-normal+) *font-normal*
+	(aref *fonts* +font-bold+) *font-bold*)
+  )
+
+
+
 ;;============================================================================
 ;; A Pen is an xrender picture 1x1 along with a 64-bit #xAAAABBBBGGGGRRRR.
 (defstruct (pen (:constructor make-pen%))
@@ -58,11 +90,11 @@
 
 (defparameter *styles* (make-array 256 :initial-element nil))
 (defparameter *styles-init*
-  `((,*font-normal*  0 0)                 ;0 transparent space
-    (,*font-normal*  #xFFFFFFFFFFFFFFFF 0);1 white
-    (,*font-normal*  #xFFFF6262C1C12C2C 0);2 emerald text
-    (,*font-normal*  #xFFFFFFFF00000000 0);3 blue - literal
-    (,*font-normal*  #xFFFF0F004300BD00 0);4 tia maria - string
+  '((#.+font-normal+  0 0)                 ;0 transparent space
+   (#.+font-normal+  #xFFFFFFFFFFFFFFFF 0);1 white
+   (#.+font-normal+  #xFFFF6262C1C12C2C 0);2 emerald text
+   (#.+font-normal+  #xFFFFFFFF00000000 0);3 blue - literal
+   (#.+font-normal+  #xFFFF0F004300BD00 0);4 tia maria - string
    
     )
   )
@@ -82,7 +114,7 @@
 	    :initial-contents
 	    (loop for ilist in *styles-init*
 	       collect (make-style
-			:font (car ilist)
+			:font (aref *fonts* (car ilist))
 			:fore (make-pen (cadr ilist))
 			:back (make-pen (caddr ilist)))))))
 
