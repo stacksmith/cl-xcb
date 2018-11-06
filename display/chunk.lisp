@@ -11,12 +11,12 @@
 ;; XCB xbuf accessors for xrender string-compositing functions.  Note
 (defmacro xbuf-pix-width (xbuf)
   `(mem-ref ,xbuf :UINT16 -6))
-(defmacro xbuf-styndex (xbuf)
-  `(mem-ref ,xbuf :UINT8 -4))
-(defmacro xbuf-flags (xbuf)
-  `(mem-ref ,xbuf :UINT8 -3))
 (defmacro xbuf-chindex (xbuf)
-  `(mem-ref ,xbuf :UINT16 -2))
+  `(mem-ref ,xbuf :UINT16 -4))
+(defmacro xbuf-styndex (xbuf)
+  `(mem-ref ,xbuf :UINT8 -2))
+(defmacro xbuf-flags (xbuf)
+  `(mem-ref ,xbuf :UINT8 -1))
 ;; 16 - XCB-native
 (defmacro xbuf-data-length (xbuf)
   `(mem-ref ,xbuf :UINT32) )
@@ -29,6 +29,13 @@
 (defmacro xbuf-byte-length (xbuf)
   `(+ 8 (* 4 (xbuf-data-length ,xbuf))))
 (defconstant  +xbuf-prefix+ 6)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defconstant +KIND-END+ 0)
+  (defconstant +KIND-OPEN+ 1)
+  (defconstant +KIND-CLOSE+ 3)
+  (defconstant +KIND-NORMAL+ 2))
+(defmacro xbuf-kind (xbuf)
+  `(logand 3 (xbuf-flags ,xbuf)))
 
 ;;------------------------------------------------------------------------------
 ;; xbuf-next
@@ -65,11 +72,11 @@
 
 ;;------------------------------------------------------------------------------
 ;; Space
-
+#||
 (defparameter *the-cond-space* (defstruct cond-space))
 (defmethod display-as ((obj cond-space) screen)
-  (screen-append-prim screen obj " " 0 style-space))
-
+  (screen-append-prim screen obj " " +KIND-NORMAL+ style-space))
+||#
 
 
 ;;==============================================================================
@@ -150,7 +157,7 @@
 
 (defparameter *the-space* (make-disp-space))
 (defmethod screen-append (screen (obj displayable) cons)
-  (screen-append-prim screen *the-space* " " 0 style-space)
+  (screen-append-prim screen *the-space* " " +KIND-NORMAL+ style-space)
   )
 
 
@@ -175,28 +182,28 @@
 (defmethod screen-append (screen (obj symbol) cons)
   (screen-maybe-space screen)
   (screen-append-prim screen cons (string-downcase (symbol-name obj))
-		      0 style-symbol)
+		      +KIND-NORMAL+ style-symbol)
   (screen-set-halfspace screen))
 
 (defmethod screen-append (screen (obj string) cons)
   (screen-maybe-space screen)
-  (screen-append-prim screen obj "\""  1 style-string)
-  (screen-append-prim screen cons obj  0 style-string)
-  (screen-append-prim screen obj "\""  2 style-string)
+  (screen-append-prim screen obj "\""  +KIND-NORMAL+ style-string)
+  (screen-append-prim screen cons obj  +KIND-NORMAL+ style-string)
+  (screen-append-prim screen obj "\""  +KIND-NORMAL+ style-string)
   (screen-set-halfspace screen))
 
 (defmethod screen-append (screen (obj number) cons)
   (screen-maybe-space screen)
-  (screen-append-prim screen cons (format nil "~A" obj)  0 style-literal)
+  (screen-append-prim screen cons (format nil "~A" obj)  +KIND-NORMAL+ style-literal)
   (screen-set-halfspace screen))
 
 (defmethod screen-append (screen (obj list) cons)
   (screen-maybe-space screen)
-  (screen-append-prim  screen obj "(" 1 style-paren)
+  (screen-append-prim  screen obj "(" +KIND-OPEN+ style-paren)
   (screen-clear-halfspace screen)
    (loop for cons on obj do
 	(screen-append screen (car cons) cons))
-   (screen-append-prim  screen obj ")" 2 style-paren)
+   (screen-append-prim  screen obj ")" +KIND-CLOSE+ style-paren)
   (screen-set-halfspace screen))
 
 ;;==============================================
@@ -209,17 +216,23 @@
 	 (setf (xbuf-x ptr) x))
     (values (xbuf-next ptr) (+ x (xbuf-pix-width ptr)))))
 
-;; Layout an expression in this line...unconditionally,
-;; returning x and next-ptr.
+;;==============================================================================
+;; layout-expr
+;;
+;; Layout an expression in this line...unconditionally, returning x and next-ptr.
+;;
 (defun screen-layout-exp(ptr x)
  ;; (format t "~%screen-layout-exp ~A ~A" ptr x)
   (prog ()
+     (mvsetq (ptr x) (screen-layout-simple ptr x)); we _know_ it is a (
    again
-   (let ((flg  (logand 3 (xbuf-flags ptr))))
-     (mvsetq (ptr x) (screen-layout-simple ptr x))
-     (unless (= flg 2)
-       (go again))
-     (return (values  (xbuf-next ptr) x )))))
+   (let ((kind  (xbuf-kind ptr)))
+     (if (= kind +KIND-OPEN+)
+	 (mvsetq (ptr x)(screen-layout-exp ptr x))
+	 (mvsetq (ptr x)(screen-layout-simple ptr x)))
+     (unless (= kind +KIND-CLOSE+)
+       (go again)))
+   (return (values ptr x ))))
 
 
 ;;------------------------------------------------------------------------------
@@ -246,7 +259,7 @@
 ;; and another check; second break-it on a new line means we really need to
 ;; break it.
 (defun screen-layout (screen ptr x indent)
-  (format t "~%---~A" indent)
+ ;; (format t "~%---~A" indent)
   (in-screen (screen)
     ;; process opener
     (mvsetq (ptr x) (screen-layout-simple ptr x))
@@ -254,23 +267,32 @@
        ;;-------------------------------------------
      again
      (when (plusp (xbuf-data-length p))
-       (case (logand 3 (xbuf-flags p))
-	 (0 (mvbind (pp px) (screen-layout-try-simple screen p x)
+       (case (xbuf-kind p)
+	 (#.+KIND-NORMAL+ (mvbind (pp px) (screen-layout-try-simple screen p x)
 	      (if pp (setf p pp  x px)
 		  ;; either :wrap-it or :break-it requires a new line.
 		  (progn ; if it does not fit, go to next line
 		    (terpri)    ;; TODO: increment y
 		    (setf x indent) ))))
-	 (1 (format t "|IN|")
+	 (#.+KIND-OPEN+
+	  (format t "|IN|")
 	  (mvbind (pp px) (screen-layout-try-exp screen p x)
-	      (if pp (setf p pp  x px)
-		  ;; either :wrap-it or :break-it requires a new line.
-		  (progn ; if it does not fit, go to next line
-		    (terpri)    ;; TODO: increment y
-		    (setf x indent) ; indent as required
-		    (mvsetq (p x) (screen-layout screen p x x))))
-	      (format t "|OUT ~A|" pp )))
-	 (2 (mvsetq (p x)(screen-layout-simple p x))
+	    (if pp
+		(progn
+		  (format t "|YES|")
+		  (setf p pp  x px) ;; processed in entirety!
+		  (terpri)
+		  (setf x indent)
+		  ;;		    (format t "|TOTS|")
+		  )
+		;; either :wrap-it or :break-it requires a new line.
+		(progn ; if it does not fit, go to next line
+		  (terpri)    ;; TODO: increment y
+		  (setf x indent) ; indent as required
+		  (mvsetq (p x) (screen-layout screen p x x))
+		  ;;		    (format t "|PART ~A|" pp )
+		  ))))
+	 (#.+KIND-CLOSE+ (mvsetq (p x)(screen-layout-simple p x))
 	    (return-from screen-layout (values p x))))
        (go again))
        
@@ -279,7 +301,7 @@
 
 (defun screen-layout-in (screen)
   (in-screen (screen)
-    (setf (xbuf-data-length ptr.) 0) ;;terminate
+    (setf (xbuf-flags ptr.) 0) ;;terminate
     (screen-layout screen (inc-pointer buf. +xbuf-prefix+) 0 0 )))
 
 
