@@ -4,7 +4,8 @@
 ;;=============================================================================
 ;; Bufwin is a generic window with an off-screen buffer.
 (defclass win-direct (win-base)
-  ((pic :accessor pic :initform nil)))
+  ((pic :accessor pic :initform nil))
+)
 
 (defun win-make-window1 (win)
  )
@@ -48,8 +49,10 @@
 (defmethod win-on-resize ((win win-direct) w h)
   (format t "RESIZED")
   t)
+
+(defmethod win-on-expose ((win win-direct) x y w h c event)  )
 ;;------------------------------------------------------------------------------
-;;(defmethod win-on-expose ((win win-base) x y width height count event))
+
 
 ;;==================================
 ;; Initialize with (init)  -- see xcb-system.lisp
