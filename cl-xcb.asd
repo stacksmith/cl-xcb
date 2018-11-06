@@ -20,7 +20,7 @@
 
 	       (:file "display/attributes")
 	       (:file "display/xbuf")
-	       (:file "display/screen")
+	       (:file "display/section")
 	       (:file "display/display")
 	 
 
