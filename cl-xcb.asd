@@ -19,7 +19,8 @@
 	       (:file "higher/win-direct")
 
 	       (:file "display/attributes")
-	       (:file "display/chunk")
+	       (:file "display/xbuf")
+	       (:file "display/screen")
 	       (:file "display/display")
 	 
 
