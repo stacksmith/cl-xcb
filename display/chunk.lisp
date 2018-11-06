@@ -9,26 +9,28 @@
 ;; During layout we figure out the x/y pixel positions
 ;;==============================================================================
 ;; XCB xbuf accessors for xrender string-compositing functions.  Note
-(defmacro xbuf-pix-width (xbuf)
-  `(mem-ref ,xbuf :UINT16 -6))
-(defmacro xbuf-chindex (xbuf)
-  `(mem-ref ,xbuf :UINT16 -4))
-(defmacro xbuf-styndex (xbuf)
-  `(mem-ref ,xbuf :UINT8 -2))
 (defmacro xbuf-flags (xbuf)
-  `(mem-ref ,xbuf :UINT8 -1))
+  `(mem-ref ,xbuf :UINT8 0))
+(defmacro xbuf-styndex (xbuf)
+  `(mem-ref ,xbuf :UINT8 1))
+(defmacro xbuf-pix-width (xbuf)
+  `(mem-ref ,xbuf :UINT16 2))
+(defmacro xbuf-chindex (xbuf)
+  `(mem-ref ,xbuf :UINT16 4))
+
 ;; 16 - XCB-native
 (defmacro xbuf-data-length (xbuf)
-  `(mem-ref ,xbuf :UINT32) )
+  `(mem-ref ,xbuf :UINT32 6))
 (defmacro xbuf-x (xbuf)
-  `(mem-ref ,xbuf :UINT16 4))
+  `(mem-ref ,xbuf :UINT16 10))
 (defmacro xbuf-y (xbuf)
-  `(mem-ref ,xbuf :UINT16 6))
+  `(mem-ref ,xbuf :UINT16 12))
 (defmacro xbuf-ref (xbuf index)
-  `(mem-ref ,xbuf :UINT32 (+ 8 (* 4 ,index))))
+  `(mem-ref ,xbuf :UINT32 (+ 14 (* 4 ,index))))
 (defmacro xbuf-byte-length (xbuf)
-  `(+ 8 (* 4 (xbuf-data-length ,xbuf))))
-(defconstant  +xbuf-prefix+ 6)
+  `(+ 14 (* 4 (xbuf-data-length ,xbuf))))
+(defconstant  +xbuf-prefix+ 0)
+(defconstant  +xbuf-data+ 14)
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defconstant +KIND-END+ 0)
   (defconstant +KIND-OPEN+ 1)
@@ -56,7 +58,7 @@
   (let ((pix-width 0)
 	(font (style-font (svref *styles* styndex))))
     (loop for i from 0 below (length string)
-       for offset from 8 by 4
+       for offset from +XBUF-DATA+ by 4
        for code = (char-code (char string i))
        do
 	 (incf pix-width (glyph-assure font code))
@@ -71,13 +73,22 @@
 	 (return (inc-pointer xbuf (+ offset 4 +xbuf-prefix+))))))
 
 ;;------------------------------------------------------------------------------
-;; Space
-#||
-(defparameter *the-cond-space* (defstruct cond-space))
-(defmethod display-as ((obj cond-space) screen)
-  (screen-append-prim screen obj " " +KIND-NORMAL+ style-space))
-||#
-
+(defun xbuf-dump (xbuf)
+  (format t "~%<ch~A|~A|~A|#~A|(~A,~A)~A:"
+	  (xbuf-flags xbuf)
+	  (xbuf-styndex xbuf)
+	  (xbuf-pix-width xbuf)
+	  (xbuf-chindex xbuf)
+	  (xbuf-x xbuf)
+	  (xbuf-y xbuf)
+	  (xbuf-data-length xbuf))
+  (let ((len (xbuf-data-length xbuf)))
+    (loop for i below len do
+	 (princ (code-char (xbuf-ref xbuf i)))))
+  (format t ">")
+  (xbuf-next xbuf)
+  )
+;;------------------------------------------------------------------------------
 
 ;;==============================================================================
 ;;
@@ -126,8 +137,6 @@
   (print-unreadable-object (o s :type t )
     (loop for i below (screen-chindex o)
        do (princ (aref (screen-chunks o) i) s))))
-
-
 
 (defun screen-append-prim (screen obj string flags styndex)
   (with-accessors ((chunks. screen-chunks) (index. screen-chindex)
@@ -206,97 +215,109 @@
    (screen-append-prim  screen obj ")" +KIND-CLOSE+ style-paren)
   (screen-set-halfspace screen))
 
-;;==============================================
-;;
-;; output a simple one, and return next x and
-(defun screen-layout-simple (ptr x)
-  (let ((len (xbuf-data-length ptr)))
-    (loop for i below len do
-	 (princ (code-char (xbuf-ref ptr i))) ;;TODO: this is for test output
-	 (setf (xbuf-x ptr) x))
-    (values (xbuf-next ptr) (+ x (xbuf-pix-width ptr)))))
-
-;;==============================================================================
-;; layout-expr
-;;
-;; Layout an expression in this line...unconditionally, returning x and next-ptr.
-;;
-(defun screen-layout-exp(ptr x)
- ;; (format t "~%screen-layout-exp ~A ~A" ptr x)
-  (prog ()
-     (mvsetq (ptr x) (screen-layout-simple ptr x)); we _know_ it is a (
-   again
-   (let ((kind  (xbuf-kind ptr)))
-     (if (= kind +KIND-OPEN+)
-	 (mvsetq (ptr x)(screen-layout-exp ptr x))
-	 (mvsetq (ptr x)(screen-layout-simple ptr x)))
-     (unless (= kind +KIND-CLOSE+)
-       (go again)))
-   (return (values ptr x ))))
-
-
-;;------------------------------------------------------------------------------
-;; Attempt to process an item testing for fit; return t x ptr or nil
-;; simple items get an :it-fits or :wrap-it; ( is processed as a unit and
-;; gets an :it-fits or :break-it.  To process :break-it try it on a new line
-;; first, and it it's still break-it, process ( unconditionally on a new line,
-;; then just continue.
-(defun screen-layout-try-simple (screen ptr x)
-  (in-screen (screen)
-    (mvbind (proposed-ptr proposed-x) (screen-layout-simple ptr x)
-      (when (< proposed-x margin-r.)
-	(values proposed-ptr proposed-x )))))
-
-(defun screen-layout-try-exp (screen ptr x)
-  (in-screen (screen)
-    (mvbind (proposed-ptr proposed-x) (screen-layout-exp ptr x)
-      (when (< proposed-x margin-r.)
-	(values proposed-ptr proposed-x )))))
-
-
 ;; Layout the screen into lines.
 ;; Note: break-it comes in two stages: first break-it triggers a newline
 ;; and another check; second break-it on a new line means we really need to
 ;; break it.
-(defun screen-layout (screen ptr x indent)
- ;; (format t "~%---~A" indent)
-  (in-screen (screen)
-    ;; process opener
-    (mvsetq (ptr x) (screen-layout-simple ptr x))
-    (prog ((p ptr))
-       ;;-------------------------------------------
-     again
-     (when (plusp (xbuf-data-length p))
-       (case (xbuf-kind p)
-	 (#.+KIND-NORMAL+ (mvbind (pp px) (screen-layout-try-simple screen p x)
-	      (if pp (setf p pp  x px)
-		  ;; either :wrap-it or :break-it requires a new line.
-		  (progn ; if it does not fit, go to next line
-		    (terpri)    ;; TODO: increment y
-		    (setf x indent) ))))
-	 (#.+KIND-OPEN+
-	  (format t "|IN|")
-	  (mvbind (pp px) (screen-layout-try-exp screen p x)
-	    (if pp
-		(progn
-		  (format t "|YES|")
-		  (setf p pp  x px) ;; processed in entirety!
-		  (terpri)
-		  (setf x indent)
-		  ;;		    (format t "|TOTS|")
-		  )
-		;; either :wrap-it or :break-it requires a new line.
-		(progn ; if it does not fit, go to next line
-		  (terpri)    ;; TODO: increment y
-		  (setf x indent) ; indent as required
-		  (mvsetq (p x) (screen-layout screen p x x))
-		  ;;		    (format t "|PART ~A|" pp )
-		  ))))
-	 (#.+KIND-CLOSE+ (mvsetq (p x)(screen-layout-simple p x))
-	    (return-from screen-layout (values p x))))
-       (go again))
-       
-     )))
+(let (closer)
+  ;;==============================================
+;;
+;; output a simple one, and return next x and
+  (defun screen-layout-simple (ptr x)
+    (let ((len (xbuf-data-length ptr)))
+      (loop for i below len do
+	   (princ (code-char (xbuf-ref ptr i))) ;;TODO: this is for test output
+	   (setf (xbuf-x ptr) x))
+      (values (xbuf-next ptr) (+ x (xbuf-pix-width ptr)))))
+  
+  ;;==============================================================================
+  ;; layout-expr
+  ;;
+  ;; Layout an expression in this line...unconditionally, returning x and next-ptr.
+  ;;
+  (defun screen-layout-exp(ptr x)
+    ;; (format t "~%screen-layout-exp ~A ~A" ptr x)
+    (prog ()
+       (mvsetq (ptr x) (screen-layout-simple ptr x)); we _know_ it is a (
+       again
+       (let ((kind  (xbuf-kind ptr)))
+	 (case kind
+	   (#.+KIND-OPEN+   (mvsetq (ptr x)(screen-layout-exp ptr x)))
+	   (#.+KIND-NORMAL+ (mvsetq (ptr x)(screen-layout-simple ptr x)))
+	   (#.+KIND-CLOSE+  (push ptr closer) (setf ptr (xbuf-next ptr))))
+	 (unless (= kind +KIND-CLOSE+)
+	   (go again)))
+       (return (values ptr x ))))
+  
+  
+  ;;------------------------------------------------------------------------------
+  ;; Attempt to process an item testing for fit; return t x ptr or nil
+  ;; simple items get an :it-fits or :wrap-it; ( is processed as a unit and
+  ;; gets an :it-fits or :break-it.  To process :break-it try it on a new line
+  ;; first, and it it's still break-it, process ( unconditionally on a new line,
+  ;; then just continue.
+  (defun screen-layout-try-simple (screen ptr x)
+    (in-screen (screen)
+      (mvbind (proposed-ptr proposed-x) (screen-layout-simple ptr x)
+	(when (< proposed-x margin-r.)
+	  (values proposed-ptr proposed-x )))))
+  
+  (defun screen-layout-try-exp (screen ptr x)
+    (in-screen (screen)
+      (mvbind (proposed-ptr proposed-x) (screen-layout-exp ptr x)
+	(when (< proposed-x margin-r.)
+	  (values proposed-ptr proposed-x )))))
+  
+  
+  
+  (defun screen-layout (screen ptr x indent)
+    ;; (format t "~%---~A" indent)
+    (in-screen (screen)
+      (labels ((cr ()
+		 (loop while closer do
+		      (mvsetq (ptr x)(screen-layout-simple (pop closer) x )))
+		 (terpri)
+		 (setf x indent)
+		 ))
+	;; process opener
+	(mvsetq (ptr x) (screen-layout-simple ptr x))
+	(prog ((p ptr))
+	   ;;-------------------------------------------
+	 again
+	 (when (plusp (xbuf-data-length p))
+	   (case (xbuf-kind p)
+	     (#.+KIND-NORMAL+ (mvbind (pp px) (screen-layout-try-simple screen p x)
+				(if pp (setf p pp  x px)
+				    ;; either :wrap-it or :break-it requires a new line.
+				    (progn ; if it does not fit, go to next line
+				      (terpri)    ;; TODO: increment y
+				      (setf x indent) ))))
+	     (#.+KIND-OPEN+
+	      (format t "|IN|")
+	      (let ((closer1 closer))
+		(mvbind (pp px) (screen-layout-try-exp screen p x)
+		  (if pp
+		      (progn
+			(format t "|YES|")
+			(setf p pp  x px) ;; processed in entirety!
+			(cr)
+			;;		    (format t "|TOTS|")
+			)
+		      ;; either :wrap-it or :break-it requires a new line.
+		      (progn ; if it does not fit, go to next line
+			(format t "|NO|")
+			(setf closer closer1)
+			(cr)    ;; TODO: increment y
+			(mvsetq (p x) (screen-layout screen p x x))
+			;;		    (format t "|PART ~A|" pp )
+			)))))
+	     (#.+KIND-CLOSE+
+	      (push p closer)
+	      (format t "|CLOSER|")
+	      (return-from screen-layout (values p x))))
+	   (go again))
+	 
+	 )))))
 
 
 (defun screen-layout-in (screen)
