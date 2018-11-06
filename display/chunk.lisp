@@ -57,7 +57,7 @@
 	 (setf (mem-ref xbuf :UINT32 offset) code)
 	 
        finally; update pixel width and glyph count
-	 (format t "~% piceif ~A" pix-width)
+	 (format t "~% flags ~A" (xbuf-flags xbuf))
 	 (setf (xbuf-pix-width xbuf) pix-width; store pix-width
 	       (xbuf-data-length xbuf) i)
        ;; bump pointer to next position
@@ -201,45 +201,99 @@
 
 ;;==============================================
 ;;
-    ;; output opener
-(defun screen-layout-one (ptr x)
+;; output a simple one, and return next x and
+(defun screen-layout-simple (ptr x)
   (let ((len (xbuf-data-length ptr)))
     (loop for i below len do
-	 (princ (code-char (xbuf-ref ptr i)))
+	 (princ (code-char (xbuf-ref ptr i))) ;;TODO: this is for test output
 	 (setf (xbuf-x ptr) x))
-    (+ x (xbuf-pix-width ptr))))
-(defun screen-layout-exp (screen ptr x indent)
+    (values (xbuf-next ptr) (+ x (xbuf-pix-width ptr)))))
+
+;; Layout an expression in this line...unconditionally,
+;; returning x and next-ptr.
+(defun screen-layout-exp(ptr x)
+ ;; (format t "~%screen-layout-exp ~A ~A" ptr x)
+  (prog ()
+   again
+   (let ((flg  (logand 3 (xbuf-flags ptr))))
+     (mvsetq (ptr x) (screen-layout-simple ptr x))
+     (unless (= flg 2)
+       (go again))
+     (return (values  (xbuf-next ptr) x )))))
+
+
+;;------------------------------------------------------------------------------
+;; Attempt to process an item testing for fit; return t x ptr or nil
+;; simple items get an :it-fits or :wrap-it; ( is processed as a unit and
+;; gets an :it-fits or :break-it.  To process :break-it try it on a new line
+;; first, and it it's still break-it, process ( unconditionally on a new line,
+;; then just continue.
+(defun screen-layout-try-simple (screen ptr x)
+  (in-screen (screen)
+    (mvbind (proposed-ptr proposed-x) (screen-layout-simple ptr x)
+      (when (< proposed-x margin-r.)
+	(values proposed-ptr proposed-x )))))
+
+(defun screen-layout-try-exp (screen ptr x)
+  (in-screen (screen)
+    (mvbind (proposed-ptr proposed-x) (screen-layout-exp ptr x)
+      (when (< proposed-x margin-r.)
+	(values proposed-ptr proposed-x )))))
+
+
+;; Layout the screen into lines.
+;; Note: break-it comes in two stages: first break-it triggers a newline
+;; and another check; second break-it on a new line means we really need to
+;; break it.
+(defun screen-layout (screen ptr x indent)
+  (format t "~%---~A" indent)
   (in-screen (screen)
     ;; process opener
-    (setf x (screen-layout-one ptr x))
-    ;; output stuff inside
-    (loop for p = (xbuf-next ptr) then (xbuf-next p)
-       for flg = (logand 3 (xbuf-flags p))
+    (mvsetq (ptr x) (screen-layout-simple ptr x))
+    (prog ((p ptr))
+       ;;-------------------------------------------
+     again
+     (when (plusp (xbuf-data-length p))
+       (case (logand 3 (xbuf-flags p))
+	 (0 (mvbind (pp px) (screen-layout-try-simple screen p x)
+	      (if pp (setf p pp  x px)
+		  ;; either :wrap-it or :break-it requires a new line.
+		  (progn ; if it does not fit, go to next line
+		    (terpri)    ;; TODO: increment y
+		    (setf x indent) ))))
+	 (1 (format t "|IN|")
+	  (mvbind (pp px) (screen-layout-try-exp screen p x)
+	      (if pp (setf p pp  x px)
+		  ;; either :wrap-it or :break-it requires a new line.
+		  (progn ; if it does not fit, go to next line
+		    (terpri)    ;; TODO: increment y
+		    (setf x indent) ; indent as required
+		    (mvsetq (p x) (screen-layout screen p x x))))
+	      (format t "|OUT ~A|" pp )))
+	 (2 (mvsetq (p x)(screen-layout-simple p x))
+	    (return-from screen-layout (values p x))))
+       (go again))
+       
+     )))
 
-       until (= flg 2) do
-	 (case flg
-	   (0 (setf x (screen-layout-one p x)))
-	   (1 (mvsetq (p x) (screen-layout-exp screen p x indent)))
-	   #||	   (0 (let ((proposed 
-	   (if (< proposed margin-r.)
-	   (setf x proposed)
-	   (progn
-	   (setf x indent)
-	   (screen-layout-one p x)))	))
-	   (1 (mvbind (propnext propx) (screen-layout-exp screen p x indent)
-	   (if (< propx margin-r.)
-	   (setf x propx
-	   p propnext)
-	   (progn
-	   (setf x indent)
-	   (mvsetq (p x) (screen-layout-exp screen p x indent))))))
-	   ||#
-	   )
-       finally
-	 (setf x (screen-layout-one p x))
-	 (return (values p x)))))
 
-(defun screen-layout (screen)
+(defun screen-layout-in (screen)
   (in-screen (screen)
     (setf (xbuf-data-length ptr.) 0) ;;terminate
-    (screen-layout-exp screen (inc-pointer buf. +xbuf-prefix+)  0 0 )))
+    (screen-layout screen (inc-pointer buf. +xbuf-prefix+) 0 0 )))
+
+
+(defun ttt ()
+  (setf *screen* (make-screen))
+  (screen-append *screen* '(defmethod screen-append (screen (obj list) cons)
+			    (screen-maybe-space screen)
+			    (screen-append-prim
+			     screen obj "("
+			     0 0 (pen-pic *pen-white*) (pen-pic *pen-black*) )
+			    (screen-clear-halfspace screen)
+			    (loop for cons on obj do
+				 (screen-append screen (car cons) cons))
+			    (screen-append-prim
+			     screen obj ")"
+			     0 0 (pen-pic *pen-white*) (pen-pic *pen-black*) )
+			    (screen-set-halfspace screen)) nil))
