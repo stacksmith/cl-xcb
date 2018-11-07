@@ -8,7 +8,7 @@
 
 ;;=============================================================================
 ;; Bufwin is a generic window with an off-screen buffer.
-(defstruct (win-base (:include panel) (:conc-name win-) (:constructor make-win-base%))
+(defstruct (win-base (:include layout) (:conc-name win-) (:constructor make-win-base%))
   (id 0 :type U32)
   (moved nil :type t)  (resized nil :type t) 
   (gc 0 :type U32))
@@ -71,6 +71,15 @@
     (format t "OK! ~A" win)
     (init-win *w* :maker maker )
     win))
+;;==============================================================================
+;; Panel protocol
+;;
+;; window is a topmost panel, so we do not do anything..
+(defmethod panel-attached ((panel win-base) layout)
+  )
+(defmethod panel-detached ((panel win-base) layout)
+  )
+
 ;;==============================================================================
 ;; 
 (defmethod win-on-destroy-notify ((win win-base))
