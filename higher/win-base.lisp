@@ -8,24 +8,16 @@
 
 ;;=============================================================================
 ;; Bufwin is a generic window with an off-screen buffer.
-(defclass win-base ()
-  ((id     :accessor id     :initform nil)  ;; window xcb id
-   (width  :accessor width  :initform 0)
-   (height :accessor height :initform 0)
-   (xpos   :accessor xpos   :initform 0) ;; useful to differentiate resizing
-   (ypos   :accessor ypos   :initform 0) ;; from window motion
-   (moved  :accessor moved  :initform nil) ;; useful to differentiate resizing
-   (resized :accessor resized :initform 0) ;; from window motion
-   
-   (gc     :accessor gc     :initform nil)))
+(defstruct (win-base (:include panel) (:conc-name win-) (:constructor make-win-base%))
+  (id 0 :type U32)
+  (moved nil :type t)  (resized nil :type t) 
+  (gc 0 :type U32))
 ;;-------------------------------------------------------------------------
 ;; called by window's initialize-instance to create the window.  This
 ;; default one.  Each window may have a different one specified at creation
-(defun win-make-window (win)
- )
 ;; This method ensures that the class win-make-xcb-window will be called.
 (defmethod win-make-xcb-window ((win win-base))
-  (with-slots (width height id) win
+  (with-slots (w h id) win
     (with-foreign-slots ((root root-visual) s (:struct screen-t))
       (w-foreign-values (vals
 			 ;;:uint32 black-pixel
@@ -37,21 +29,16 @@
 				    EVENT-MASK-KEY-PRESS )) 
 	(check (create-window c COPY-FROM-PARENT id
 			      root
-			      0 0 width height 10
+			      0 0 w h 10
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
 			      (+ ;;CW-BACK-PIXEL
 				 CW-BIT-GRAVITY  CW-EVENT-MASK   ) vals))
 	))))
-(defmethod initialize-instance :after ((win win-base)
-				       &key w h
-					 maker 
-					 &allow-other-keys)
-  (setf *w* win)
+(defmethod init-win ((win win-base)  &key maker  &allow-other-keys)
+ 
   (format t "~%init-instance of ~A "win)
-  (with-slots ( id gc width height) win
-    (setf width w
-	  height h)
+  (with-slots ( id gc ) win
     (with-foreign-slots ((root root-visual white-pixel black-pixel
 			       root-depth) s (:struct screen-t))
       ;; WINDOW
@@ -78,10 +65,16 @@
     (format t "mapped")
     (flush c)
     win))
+(defun make-win-base (w h &optional maker)
+  (let ((win (make-win-base% :w w :h h )))
+    (setf *w* win)
+    (format t "OK! ~A" win)
+    (init-win *w* :maker maker )
+    win))
 ;;==============================================================================
 ;; 
 (defmethod win-on-destroy-notify ((win win-base))
-  (remhash (id win) windows ))
+  (remhash (win-id win) windows ))
 
 ;;==============================================================================
 ;;
@@ -97,7 +90,7 @@
 ;;
 ;; Use win-on-destroy-notify to do actual bookkeeping
 (defmethod win-destroy ((win win-base))
-  (check (destroy-window c (id win)))
+  (check (destroy-window c (win-id win)))
   (flush c))
 
 
@@ -119,20 +112,20 @@
 ;;
 ;; TODO: does this work if someone calls ResizeWindow etc?  check...
 ;;
-(defmethod win-on-configure-notify ((win win-base) synth x y w ht e)
+(defmethod win-on-configure-notify ((win win-base) synth wx wy ww wh e)
    (when synth
-      (with-slots (width height xpos ypos resized moved) win
+      (with-slots (x y w h  resized moved) win
 	;; map: 1=pos 2=size 3=both
-	(let ((size (or (/= width  w) (/= height ht)))
-	      (pos  (or (/= xpos x) (/= ypos y))))
-	  (when size (setf width w height ht resized t))
-	  (when pos  (setf xpos x  ypos y moved t))
+	(let ((size (or (/= w ww) (/= h wh)))
+	      (pos  (or (/= x wx) (/= y wy))))
+	  (when size (setf w ww h wh resized t))
+	  (when pos  (setf x wx  y wy moved t))
 	  (unless (or pos size)
 	    (when resized
-	      (win-on-resize win w ht)
+	      (win-on-resize win ww wh)
 	      (setf resized nil))
 	    (when moved
-	      (win-on-move win x y)
+	      (win-on-move win wx wy)
 	      (setf moved nil))))
 	t)))
 ;;==============================================================================
@@ -151,10 +144,10 @@
   )
 ;;------------------------------------------------------------------------------
 (defun win-redraw (win wx wy ww wh)
-  (with-slots (width height gc id) win
-    (clear-area c 0 id wx wy ww wh)
-    (w-foreign-values (vals :uint16 wx :uint16 wy  :uint16 (+ wx ww) :uint16 (+ wy  wh))
-      (check (poly-line c COORD-MODE-ORIGIN (id win) (gc win) 2 vals))
+  (with-slots (w h gc id) win
+    (check (clear-area c 0 id 0 0 w h))
+    (w-foreign-values (vals :uint16 0 :uint16 0  :uint16 w :uint16 h)
+      (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals))
        
       ;; ostensibly, we finished drawing
       (xcb::flush c)
@@ -166,39 +159,20 @@
   (let ((len (length name))
 	(str (foreign-string-alloc name)))
     (w-foreign-values (buf :uint32 8)
-      (check (change-property c PROP-MODE-REPLACE (id win) ATOM-WM-NAME
+      (check (change-property c PROP-MODE-REPLACE (win-id win) ATOM-WM-NAME
 			      ATOM-STRING 8 len str)))
     (foreign-free str)))
 
 
 
-;;=============================================================================
-;; String output
-(defun test-out (string win x y &optional (pen *pen-white*))
-  (let* ((slen (length string))
-	 (xbuflen (+ (ash slen 2) 8))) ;32 bits per char + head
-    (with-foreign-object (xbuf :uint8 xbuflen)
-      (setf (mem-ref xbuf :UINT32 0) slen ;composite character count
-	    (mem-ref xbuf :UINT16 4) x 
-	    (mem-ref xbuf :UINT16 6) y ) 
-      ;; set the glyphs
-      (loop for i from 8 by 4
-	 for c across string
-	 for code = (char-code c) do
-	   (setf (mem-ref xbuf :UINT32 i) code)
-	   (glyph-assure *font-normal* code))
-      (check (composite-glyphs-32
-	      c OP-OVER (pen-pic pen)
-	      (pic win) +ARGB32+ (font-glyphset *font-normal*)
-	      0 0 xbuflen xbuf))
-      (flush c))))
+
 
 
 ;;==================================
 ;; Initialize with (init)  -- see xcb-system.lisp
 ;;
 (defun wintest ()
-  (make-instance 'win-base :w 640 :h 480)
+  (make-win-base 640 480)
   (sleep 0.1)
   (events-process)(flush c)
 

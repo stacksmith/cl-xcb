@@ -118,3 +118,6 @@
       (xcb::flush c) ;;TODO
       )))
 ||#
+
+(defmethod re-layout ((panel panel) w h)
+  )
