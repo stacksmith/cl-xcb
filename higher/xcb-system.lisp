@@ -71,7 +71,7 @@
 
 ;;------------------------------------------------------------------------------
 ;; Dispatch expose events via generic win-on-expose
-(defun on-expose (event )
+(defun ev-on-expose (event )
   (with-foreign-slots ((window x y width height count) event (:struct ES-EXPOSE))
    ;; (format t "ON-EXPOSE; count ~A.  ~A ~A ~A ~A~&" count x y width height)
     (win-on-expose (lisp-window window) x y width height count event)))
@@ -79,7 +79,7 @@
 ;;------------------------------------------------------------------------------
 ;; RESIZE       - does not seem to work?
 ;;
-(defun on-resize-request (event)
+(defun ev-on-resize-request (event)
   (with-foreign-slots ((window width height) event (:struct ES-RESIZE-REQUEST))
     (format t "~%RESIZE~~!~~")
   ;;  (win-on-resize (lisp-window window) width height)
@@ -87,13 +87,13 @@
 
 ;;------------------------------------------------------------------------------
 ;; Handle window closure, right here for now.
-(defun on-client-notify (e)
+(defun ev-on-client-notify (e)
 ;;  (format t "on-client-notify")
   (with-foreign-slots ((window type data0) e (:struct ES-CLIENT-MESSAGE))
     (win-on-client-notify (lisp-window window) type data0 e)))
 ;;------------------------------------------------------------------------------
 ;;
-(defun on-destroy-notify (e)
+(defun ev-on-destroy-notify (e)
 ;;  (format t "on-destroy-notify")
   (with-foreign-slots ((window ) e (:struct ES-DESTROY-NOTIFY))
      (win-on-destroy-notify (lisp-window window))))
@@ -101,7 +101,7 @@
 
 (defmethod win-on-key-press ((win t) key state))
 
-(defun on-key-press (e)
+(defun ev-on-key-press (e)
   (with-foreign-slots ((detail state event) e (:struct ES-INPUT))
 ;;    (format t "KEYCODE ~X ~A state ~X ~&" detail detail state)
 ;;    (format t "WINDOW ~A ~&" event)
@@ -109,7 +109,7 @@
   )
 ;;---------------------------------------------------------------------------
 ;;https://tronche.com/gui/x/xlib/events/window-state-change/configure.html
-(defun on-configure-notify (e)
+(defun ev-on-configure-notify (e)
   (with-foreign-slots (( window event x y width height border-width response-type override-redirect) e (:struct ES-CONFIGURE-NOTIFY))
     (win-on-configure-notify (lisp-window window) (logbitp 7 response-type) 
 			     x y width height
@@ -132,12 +132,12 @@
 (defun init-event-subsystem ()
   ;; prepare the event subsystem
   (event-dispatch-reset)
-  (event-set-handler EVENT-EXPOSE           #'on-expose)
-  (event-set-handler EVENT-CLIENT-MESSAGE   #'on-client-notify)
-  (event-set-handler EVENT-KEY-PRESS        #'on-key-press)
-  (event-set-handler EVENT-CONFIGURE-NOTIFY #'on-configure-notify)
-  (event-set-handler EVENT-RESIZE-REQUEST   #'on-resize-request)
-  (event-set-handler EVENT-DESTROY-NOTIFY   #'on-destroy-notify))
+  (event-set-handler EVENT-EXPOSE           #'ev-on-expose)
+  (event-set-handler EVENT-CLIENT-MESSAGE   #'ev-on-client-notify)
+  (event-set-handler EVENT-KEY-PRESS        #'ev-on-key-press)
+  (event-set-handler EVENT-CONFIGURE-NOTIFY #'ev-on-configure-notify)
+  (event-set-handler EVENT-RESIZE-REQUEST   #'ev-on-resize-request)
+  (event-set-handler EVENT-DESTROY-NOTIFY   #'ev-on-destroy-notify))
 ;;=============================================================================
 ;; create a picture
 (defun new-offscreen-picture (width height
@@ -162,19 +162,22 @@
 ;;=============================================================================
 ;; comp-string
 (let ((xbuf (foreign-alloc :UINT8 :count (+ 1024 8) ))) ;; enough for 256 characters
-  (defun comp-string (pic x y penpic string font &optional (start 0)
+  (defun comp-string (pic x y penpic string  &optional (start 0)
 						   (end (length string)))
      ;; set the glyphs
     (let ((cnt (- end start)))
+      (format t "~%~A ~A ~A" start end cnt) (force-output t)
       (setf (mem-ref xbuf :UINT32 0) cnt
 	    (mem-ref xbuf :UINT16 4) x 
 	    (mem-ref xbuf :UINT16 6) y )
+      
       (loop for i from 8 by 4
 	 for sindex from start below end 
 	 for code = (char-code (char string sindex))
 	 do (setf (mem-ref xbuf :UINT32 i) code)
-	   (glyph-assure font code )
+	   (glyph-assure *font-normal* code )
 	   )
+      (dump xbuf)
       (check (composite-glyphs-32
 	      c OP-OVER penpic
 	      pic +ARGB32+ (font-glyphset *font-normal*)
@@ -190,4 +193,15 @@
 
 
 
+;;==================================
+;; Initialize with (init)  -- see xcb-system.lisp
+;;
+(defun test1 ()
+  (make-win-direct 640 480;; :maker #'win-make-window1
+		 )
+  (sleep 0.1)
+  (events-process)(flush c)
+
+ )
+;; (comp-string (win-pic *w*) 20 20 (pen-pic *pen-white*) "Hello World" (font-glyphset *font-normal*))
 

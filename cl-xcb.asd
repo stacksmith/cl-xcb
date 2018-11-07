@@ -17,12 +17,12 @@
 	       (:file "higher/panel")
 ;;	       (:file "higher/attributes")
 	       (:file "higher/win-base")
-;;	       (:file "higher/win-direct")
+	       (:file "higher/win-direct")
 
 	       (:file "display/attributes")
-;;	       (:file "display/xbuf")
+	       (:file "display/xbuf")
 ;;	       (:file "display/panel")
-;;	       (:file "display/display")
+	       (:file "display/display")
 	 
 
 	        ))

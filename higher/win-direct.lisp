@@ -3,15 +3,20 @@
 
 ;;=============================================================================
 ;; Bufwin is a generic window with an off-screen buffer.
-(defclass win-direct (win-base)
-  ((pic :accessor pic :initform nil))
-)
+(defstruct (win-direct (:include win-base) (:constructor make-win-direct%)
+		       (:conc-name win-))
+  (pic 0 :type U32))
 
-(defun win-make-window1 (win)
- )
+(defun make-win-direct (w h &optional maker)
+  (let ((win (make-win-direct% :w w :h h )))
+    (setf *w* win)
+    (init-win *w* :maker maker )
+    win))
+
+
 ;; since we want all instance to make the window above...
 (defmethod win-make-xcb-window ((win win-direct))
-   (with-slots (width height id) win
+   (with-slots (w h id) win
     (with-foreign-slots ((root root-visual black-pixel) s (:struct screen-t))
       (w-foreign-values (vals
 			 :uint32 black-pixel
@@ -23,20 +28,20 @@
 				    EVENT-MASK-KEY-PRESS )) 
 	(check (create-window c COPY-FROM-PARENT id
 			      root
-			      0 0 width height 10
+			      0 0 w h 10
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
 			      (+ CW-BACK-PIXEL
 				 CW-BIT-GRAVITY  CW-EVENT-MASK   ) vals))
 	))))
 
-(defmethod initialize-instance :after ((win win-direct) &key &allow-other-keys)
+(defmethod init-win :after ((win win-direct) &key &allow-other-keys)
   (with-slots (pic id) win
     (setf pic (generate-id c))
     (check (create-picture c pic id +RGB24+ 0 (null-pointer)))))
 
 (defmethod on-destroy :before ((win win-direct))
-  (check (free-picture c (pic win)))
+  (check (free-picture c (win-pic win)))
 )
 
 ;;==============================================================================
@@ -54,13 +59,3 @@
 ;;------------------------------------------------------------------------------
 
 
-;;==================================
-;; Initialize with (init)  -- see xcb-system.lisp
-;;
-(defun test1 ()
-  (make-instance 'win-direct :w 640 :h 480;; :maker #'win-make-window1
-		 )
-  (sleep 0.1)
-  (events-process)(flush c)
-
-  (test-out "Hello World" *w* 20 20 ))
