@@ -9,6 +9,7 @@
 	       (:file "bindings/icccm")
 	       (:file "bindings/events")
 	       (:file "bindings/xcb-xrender")
+	       (:file "bindings/xcb-util")
 	       (:file "bindings/keys")
 	       
 	       (:file "win/ft2")

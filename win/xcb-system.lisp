@@ -199,6 +199,36 @@
   )
 
 
+(defun parse-color (name &optional (alpha #xFFFF))
+  (with-foreign-objects ((r :uint16) (g :uint16) (b :uint16))
+    (let ((result (parse-color% name r g b)))
+      (unless (plusp result)
+	(error "parse-color: '~A' is unknown" name ))
+      (logior (ash alpha 48)
+	      (ash (mem-ref b :uint16) 32)
+	      (ash  (mem-ref g :uint16) 16)
+	      (mem-ref r :uint16)))))
+(defun lookup-color (name &optional (alpha #xFFFF))
+  "Lookup an X11 color as ABGR64, mixing in alpha."
+  (with-foreign-slots ((default-colormap) s (:struct screen-t))
+    (let ((cookie (xcb-lookup-color c default-colormap (length name) name)))
+;;      (format t "~%~A... cookie "cookie)
+      (let ((reply (xcb-lookup-color-reply c cookie (null-pointer)))
+	    result)
+	(format t "~%~A... rep "reply)
+	(with-foreign-slots ((exact-red exact-green exact-blue) reply
+			     (:struct lookup-color-reply-t))
+	  (if (null-pointer-p reply)
+	      (error "Lookup-color: '~A' is unknown" name ))
+	  (setf result
+		(logior (ash alpha 48)
+			(ash exact-blue 32)
+			(ash exact-green 16)
+			exact-red))
+	  (foreign-free reply))
+	result))))
+
+
 
 
 ;;==================================

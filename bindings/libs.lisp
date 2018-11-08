@@ -4,6 +4,10 @@
     (:unix "libxcb.so"))
 (cffi:use-foreign-library libxcb)
 
+(cffi:define-foreign-library libxcb-util
+    (:unix "libxcb-util.so"))
+(cffi:use-foreign-library libxcb-util)
+
 (cffi:define-foreign-library libxcb-render
     (:unix "libxcb-render.so"))
 (cffi:use-foreign-library libxcb-render)

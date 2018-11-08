@@ -25,7 +25,8 @@
 				   message))
 	`(let ((cookie (,checked-function-symbol ,@(cdr function-form))))
 	   (unless (null-pointer-p (request-check ,(cadr function-form) cookie))
-	     (error ,message))))
+	     (error ,message))
+	   cookie))
       function-form))
 
 

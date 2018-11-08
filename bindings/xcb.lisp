@@ -262,9 +262,30 @@
 (defconstant     GRAVITY-STATIC 10)
 
 
-;;
-(defxcb ("xcb_send-event" send-event)
-  (propagate      :uint8)
-  (destination    window-t)
-  (event-mask     :uint32)
-  (event          :pointer))
+(defcstruct lookup-color-reply-t
+  (response-type  :uint8)
+  (pad0           :uint8)
+  (sequence       :uint16)
+  (length         :uint32)
+  (exact-red      :uint16)
+  (exact-green    :uint16)
+  (exact-blue     :uint16)
+  (visual-red      :uint16)
+  (visual-green    :uint16)
+  (visual-blue     :uint16)
+ )
+
+
+(defcfun ("xcb_lookup_color" xcb-lookup-color) :UINT32
+    (c        :pointer)
+  (cmap            :UINT32)
+  (namelen         :UINT16)
+  (name            :string))
+
+(defcfun("xcb_lookup_color_reply" xcb-lookup-color-reply)
+    (:pointer (:struct lookup-color-reply-t))
+  (c        :pointer)
+  (cookie          :UINT32)
+  (err             (:pointer (:struct generic-error-t))))
+
+
