@@ -2,9 +2,12 @@
 
 (defun subpanels-create (layout)
   (in-layout (layout layout)
-    (let* ((w1 100))
-      (layout-insert layout (make-panel  0  0 w1 height) nil)
-      (layout-insert layout (make-panel  w1 0 width height) nil)
+    (let* ((h1 (- height 16)))
+      (layout-insert layout (make-panel  0 h1 width height) nil)
+      (layout-insert layout (make-panel  0 0 width h1) nil)
+
+;;      (layout-insert layout (make-panel  0  0 w1 height) nil)
+;;      (layout-insert layout (make-panel  w1 0 width height) nil)
       )))
 
 (defmethod panel-draw ((panel panel) win idx)
@@ -19,7 +22,7 @@
 			    :uint16 x1. :uint16 y2. ;;left
 			    )
       (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 6 vals)))
-    (comp-string (win-pic win) (+ 10 x1.) (+ 10 y1.) (pen-pic *pen-white*)
+    (comp-string (win-pic win) (+ 3 x1.) (+ 12 y1.) (pen-pic *pen-white*)
 		 (format nil "pane ~A" idx))
     
         ))

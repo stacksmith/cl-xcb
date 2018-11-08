@@ -171,7 +171,7 @@
 						   (end (length string)))
      ;; set the glyphs
     (let ((cnt (- end start)))
-      (format t "~%~A ~A ~A" start end cnt) (force-output t)
+;;      (format t "~%~A ~A ~A" start end cnt) (force-output t)
       (setf (mem-ref xbuf :UINT32 0) cnt
 	    (mem-ref xbuf :UINT16 4) x 
 	    (mem-ref xbuf :UINT16 6) y )
@@ -182,7 +182,7 @@
 	 do (setf (mem-ref xbuf :UINT32 i) code)
 	   (glyph-assure *font-normal* code )
 	   )
-      (dump xbuf)
+;;      (dump xbuf)
       (check (composite-glyphs-32
 	      c OP-OVER
 	      penpic pic
