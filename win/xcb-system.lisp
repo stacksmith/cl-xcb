@@ -186,6 +186,8 @@
 
 (defun init ()
   (init-xcb)
+  (init-pens)
+  (init-fonts)
   (init-event-subsystem) ;; see event-handling.lisp
 
 ;;  (init-attrs)

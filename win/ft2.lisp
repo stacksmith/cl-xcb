@@ -1,6 +1,8 @@
 (in-package :xcb)
 ;;==============================================================================
 ;;
+;; ft2.lisp  - low level freetype2 interfaces.
+;;
 ;; The freetype2 library is used to extract glyph bitmaps and convert them to
 ;; XRender ABGR format.
 ;;
