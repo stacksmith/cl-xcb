@@ -30,3 +30,4 @@
   (setf (aref *fonts* +font-normal+) *font-normal*
 	(aref *fonts* +font-bold+) *font-bold*)
   )
+ 

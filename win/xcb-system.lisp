@@ -208,6 +208,7 @@
 	      (ash (mem-ref b :uint16) 32)
 	      (ash  (mem-ref g :uint16) 16)
 	      (mem-ref r :uint16)))))
+
 (defun lookup-color (name &optional (alpha #xFFFF))
   "Lookup an X11 color as ABGR64, mixing in alpha."
   (with-foreign-slots ((default-colormap) s (:struct screen-t))

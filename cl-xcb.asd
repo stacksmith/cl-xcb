@@ -14,6 +14,7 @@
 	       
 	       (:file "win/ft2")
 	       (:file "win/pens")
+	       (:file "win/fonts")
 	       (:file "win/event-handling")
 	       (:file "win/xcb-system")
 	       (:file "win/panels")
