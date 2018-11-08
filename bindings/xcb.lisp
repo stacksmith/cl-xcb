@@ -260,3 +260,11 @@
 (defconstant     GRAVITY-SOUTH 8)
 (defconstant     GRAVITY-SOUTH-EAST 9)
 (defconstant     GRAVITY-STATIC 10)
+
+
+;;
+(defxcb ("xcb_send-event" send-event)
+  (propagate      :uint8)
+  (destination    window-t)
+  (event-mask     :uint32)
+  (event          :pointer))

@@ -46,8 +46,11 @@
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
 			      (+ ;;CW-BACK-PIXEL
-				 CW-BIT-GRAVITY  CW-EVENT-MASK   ) vals))
-	))))
+			       CW-BIT-GRAVITY  CW-EVENT-MASK   ) vals))
+
+	;; always on top
+)
+	)))
 (defmethod init-win ((win win-base)  &key maker  &allow-other-keys)
  
   (format t "~%init-instance of ~A "win)
@@ -206,3 +209,25 @@
 
  ;; (test-out "Hello World" *w* 20 20 )
   )
+(defun always-on-top (win)
+  ;;
+  (let ((NET-WM-STATE       (easy-atom c "_NET_WM_STATE"))
+	(NET-WM-STATE-ABOVE (easy-atom c "_NET_WM_STATE_ABOVE")))
+    (w-foreign-values (event
+		       :uint8  EVENT-Client-Message
+		       :UINT8  32 ;ICCM
+		       :UINT16 0  ;sequence
+		       window-t (win-id win)
+		       atom-t   NET-WM-STATE ;type
+		       :UINT32 1 ;NET-WM-STATE-ADD
+		       :UINT32 NET-WM-STATE-ABOVE
+		       :UINT32 0
+		       :UINT32 0
+		       :UINT32 0)
+      (check (send-event c 0 root-window
+			 (logior EVENT-MASK-SUBSTRUCTURE-REDIRECT
+				 EVENT-MASK-STRUCTURE-NOTIFY)
+			 event))
+      
+      
+      )))

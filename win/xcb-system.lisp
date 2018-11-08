@@ -16,6 +16,10 @@
 
 (defparameter +WM-PROTOCOLS+ nil)
 (defparameter +WM-DELETE-WINDOW+ nil)
+
+(defparameter +NET-WM-STATE+ nil)
+(defparameter +NET-WM-STATE-ABOVE+ nil)
+(defparameter +NET-WM-STATE-BELOW+ nil)
 ;;-----------------------------------------------------------------------------
 ;; win protocol
 (defgeneric win-on-configure-notify (win synth x y w h e))
@@ -44,7 +48,8 @@
 	  +ARGB32+ (mem-ref (util-find-standard-format
 			   formats PICT-STANDARD-ARGB-32) :uint32)
 	  +WM-PROTOCOLS+ (easy-atom c "WM_PROTOCOLS")
-	  +WM-DELETE-WINDOW+ (easy-atom c "WM_DELETE_WINDOW"))))
+	  +WM-DELETE-WINDOW+ (easy-atom c "WM_DELETE_WINDOW")
+)))
 
 
 

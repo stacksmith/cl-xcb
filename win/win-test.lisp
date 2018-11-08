@@ -33,7 +33,7 @@
     (setf *w* win)
     (subpanels-create win)
     (init-win win :maker maker )
-
+    (always-on-top *w*)
     win))
 
 (defun win-test-layout (win w h)

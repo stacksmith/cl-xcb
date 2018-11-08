@@ -397,9 +397,9 @@
 (defcfun ("xcb_key_symbols_alloc" key-symbols-alloc) :pointer
   (c        :pointer))
 
-
+;;xproto.h
 (defxcb ("xcb_send_event" send-event)
-  (propagate :uint8)
-  (dest      :uint32)
-  (mask      :uint32)
-  (data      :pointer))
+  (propagate   :uint8)
+  (destination window-t)
+  (mask        :uint32)
+  (data        :pointer))
