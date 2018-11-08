@@ -12,12 +12,25 @@
   (id 0 :type U32)
   (moved nil :type t)  (resized nil :type t) 
   (gc 0 :type U32))
+
+
+
+
+(defun make-win-base (w h &optional maker)
+  (let ((win (make-win-base% :x1 0 :y1 0 :x2 w :y2 h
+			     )))
+    (format t "OK! ~A" win)
+    (setf *w* win)
+    (init-win win :maker maker )
+    win))
+
+
 ;;-------------------------------------------------------------------------
 ;; called by window's initialize-instance to create the window.  This
 ;; default one.  Each window may have a different one specified at creation
 ;; This method ensures that the class win-make-xcb-window will be called.
 (defmethod win-make-xcb-window ((win win-base))
-  (with-slots (w h id) win
+  (in-layout (layout win)
     (with-foreign-slots ((root root-visual) s (:struct screen-t))
       (w-foreign-values (vals
 			 ;;:uint32 black-pixel
@@ -27,9 +40,9 @@
 				    ;;EVENT-MASK-RESIZE-REDIRECT
 				    ;; EVENT-MASK-BUTTON-PRESS
 				    EVENT-MASK-KEY-PRESS )) 
-	(check (create-window c COPY-FROM-PARENT id
+	(check (create-window c COPY-FROM-PARENT (win-id win)
 			      root
-			      0 0 w h 10
+			      x1. y1. width height 10
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
 			      (+ ;;CW-BACK-PIXEL
@@ -65,12 +78,8 @@
     (format t "mapped")
     (flush c)
     win))
-(defun make-win-base (w h &optional maker)
-  (let ((win (make-win-base% :w w :h h )))
-    (setf *w* win)
-    (format t "OK! ~A" win)
-    (init-win *w* :maker maker )
-    win))
+
+
 ;;==============================================================================
 ;; Panel protocol
 ;;
@@ -122,21 +131,30 @@
 ;; TODO: does this work if someone calls ResizeWindow etc?  check...
 ;;
 (defmethod win-on-configure-notify ((win win-base) synth wx wy ww wh e)
-   (when synth
-      (with-slots (x y w h  resized moved) win
-	;; map: 1=pos 2=size 3=both
-	(let ((size (or (/= w ww) (/= h wh)))
-	      (pos  (or (/= x wx) (/= y wy))))
-	  (when size (setf w ww h wh resized t))
-	  (when pos  (setf x wx  y wy moved t))
+  (when synth
+    (in-layout (layout win)
+      (with-accessors ((resized. win-resized) (moved. win-moved)) win
+      	(let ((size (or (/= width ww) (/= height wh)))
+	      (pos  (or (/= x1. wx) (/= y1. wy))))
+	  (when size
+	    (setf x2. (+ x1. ww)
+		  y2. (+ y1. wh))
+	    (setf resized. t))
+	  (when pos
+	    (let ((w width)
+		  (h height))
+	      (setf x1. wx
+		    y1. wy
+		    x2. (+ wx w)
+		    y2. (+ wy h)
+		    moved. t)))
 	  (unless (or pos size)
-	    (when resized
+	    (when resized.
 	      (win-on-resize win ww wh)
-	      (setf resized nil))
-	    (when moved
+	      (setf resized. nil))
+	    (when moved.
 	      (win-on-move win wx wy)
-	      (setf moved nil))))
-	t)))
+	      (setf moved. nil))))))))
 ;;==============================================================================
 ;; Synthesized by win-on-configure-notify, not resize event (which we are not
 ;; redirecting!)
@@ -153,14 +171,15 @@
   )
 ;;------------------------------------------------------------------------------
 (defun win-redraw (win wx wy ww wh)
-  (with-slots (w h gc id) win
-    (check (clear-area c 0 id 0 0 w h))
-    (w-foreign-values (vals :uint16 0 :uint16 0  :uint16 w :uint16 h)
-      (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals))
-       
-      ;; ostensibly, we finished drawing
-      (xcb::flush c)
-      )))
+  (in-layout (layout win)
+    (with-slots (gc id) win
+      (check (clear-area c 0 id 0 0 width height))
+      (w-foreign-values (vals :uint16 0 :uint16 0  :uint16 width :uint16 height)
+	(check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals))
+	
+	;; ostensibly, we finished drawing
+	(xcb::flush c)
+	))))
 
 ;;=============================================================================
 ;; Utility functions

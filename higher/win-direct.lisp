@@ -8,7 +8,7 @@
   (pic 0 :type U32))
 
 (defun make-win-direct (w h &optional maker)
-  (let ((win (make-win-direct% :w w :h h )))
+  (let ((win (make-win-direct% :x2 w :y2 h )))
     (setf *w* win)
     (init-win *w* :maker maker )
     win))
@@ -16,9 +16,10 @@
 
 ;; since we want all instance to make the window above...
 (defmethod win-make-xcb-window ((win win-direct))
-   (with-slots (w h id) win
-    (with-foreign-slots ((root root-visual black-pixel) s (:struct screen-t))
-      (w-foreign-values (vals
+  (format t "~%win-make-xcb-window direct...")
+   (in-layout (layout win)
+     (with-foreign-slots ((root root-visual black-pixel) s (:struct screen-t))
+       (w-foreign-values (vals
 			 :uint32 black-pixel
 			 :uint32 GRAVITY-NORTH-WEST ;; Leave contents on resize.
 			 :uint32 (+ EVENT-MASK-EXPOSURE
@@ -26,9 +27,9 @@
 				    ;;EVENT-MASK-RESIZE-REDIRECT
 				    ;; EVENT-MASK-BUTTON-PRESS
 				    EVENT-MASK-KEY-PRESS )) 
-	(check (create-window c COPY-FROM-PARENT id
+	(check (create-window c COPY-FROM-PARENT (win-id win)
 			      root
-			      0 0 w h 10
+			      x1. y1. width height 10
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
 			      (+ CW-BACK-PIXEL

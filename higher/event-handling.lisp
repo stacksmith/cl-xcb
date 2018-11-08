@@ -51,6 +51,7 @@
 ;;
 (defun event-dispatch (event)
   (declare (type simple-vector *event-dispatch-table* ))
+  (format t "~%Event-dispatch c ~A" c)
   (let ((i (event-type event)))
    ;; (format *q* "~%(~A)~A: " ord (aref events i))
     (if (< i EVENT-LAST-EVENT)

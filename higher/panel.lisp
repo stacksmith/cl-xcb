@@ -15,44 +15,71 @@
   (when at
     (replace array array :start1 at :start2 (1+ at)))
   (vector-pop array))
+
+(defstruct pt2
+  (x1 0 :type S16)
+  (y1 0 :type S16)
+  (x2 0 :type S16)
+  (y2 0 :type S16))
+
+(defmacro in-pt2 ((name pt2) &body body)
+  `(let ((,name ,pt2))
+     (with-accessors ((x1. pt2-x1) (y1. pt2-y1)
+		      (x2. pt2-x2) (y2. pt2-y2)) ,name
+       (symbol-macrolet ((width  (- x2. x1.))
+			 (height (- y2. y1.))
+			 (this-pt2 ,name))
+	 (macrolet ((translate (x y)
+		      `(let ((x ,x) (y ,y))
+			 (incf x1. x) (incf x2. x)
+			 (incf y1. y) (incf y2. y)))
+		    (inset (left top right bottom)
+		      `(progn (incf x1. ,left) (decf x2. ,right)
+			      (incf y1. ,top) (decf  y2. ,bottom))))
+	   ,@body)))))
+
+(defun print-pt2 (o s)
+  (in-pt2 (pt2 o)
+    (format s "(~A,~A)(~A,~A)"      x1. y1. x2. y2.)))
+(defmethod print-object ((o pt2) s)
+  (print-unreadable-object (o s :type t )
+    (print-pt2 o s)))
+
 ;;==============================================================================
 ;;
 ;; A panel is a visual object occupying space in a window.
 ;;
-(defstruct (panel)
-  ;; geometry
-  (x 0 :type U32) (y 0 :type U32)
-  (w 0 :type U32) (h 0 :type U32)
+(defstruct (panel (:include pt2) (:constructor make-panel%))
   (dad nil :type t )
-  (fixed nil :type t)
-    ;; margins
-  (ml  10   :type U32)  (mr  10  :type U32)
-  (mt  10   :type U32)  (mb 10  :type U32))
+;;  (work (make-pt2)  :type pt2)
+  )
 
 (defmacro in-panel ((name panel) &body body)
   `(let ((,name ,panel))
-    
-     (with-accessors ((x. panel-x) (y. panel-y) (w. panel-w) (h. panel-h)
-		      (layout. panel-layout)
-		      (mr. panel-mr) (ml. panel-ml)
-		      (mt. panel-mt) (mb. panel-mb)
-		      (dad. panel-dad) (fixed. panel-fixed)
-		      ) ,name
-       (symbol-macrolet ((max-x (- w. mr.))
-			 (min-x ml.)
-			 (max-y (- h. mt.))
-			 (min-y mt.)
-			 (work-width (- w. mr. ml.))
-			 (work-height (- h. mb. mt.))
-			 )
+     (in-pt2 (,name ,panel)
+       (with-accessors (;;(work. panel-work)
+			(dad. panel-dad) ;;(fixed. panel-fixed)
+			) ,name
+	 ;;(symbol-macrolet ())
 	 ,@body))))
+
+(defun make-panel (x1 y1 x2 y2 &optional)
+  (make-panel% :x1 x1 :y1 y1 :x2 x2 :y2 y2
+;;	       :work (make-pt2 :x1 x1 :y1 y1 :x2 x2 :y2 y2)
+	       ))	
+
+
+
+
 ;; -----------------------------------------------------------------------------
+(defun print-panel (o s)
+  (in-panel (panel o)
+    (print-pt2 o s) ;;(print-pt2 work. s)
+    ))
 (defmethod print-object ((o panel) s)
   (print-unreadable-object (o s :type t )
-    (in-panel (panel o)
-      (format s "(~A,~A) ~Ax~A; [~A-~A ~A|~A]"
-	      x. y. w. h.
-	      ml. mr. mt. mb.))))
+    (print-panel o s)))
+
 ;;==============================================================================
 ;; Panel protocol
 ;;
@@ -68,7 +95,7 @@
   (setf (panel-dad panel) nil))
 ;;==============================================================================
 ;; Layout: a panel containing subpanels
-(defstruct (layout (:include panel))
+(defstruct (layout (:include panel) (:constructor make-layout%))
   (payload (make-array 4 :adjustable t :fill-pointer 0)))
 
 (defmacro in-layout ((name layout) &body body)
@@ -78,14 +105,17 @@
 	 (symbol-macrolet ((idx. (fill-pointer payload.))
 			   (panel-count (fill-pointer payload.)))
 	   ,@body)))))
+(defun make-layout (x1 y1 x2 y2 )
+  (make-layout% :x1 x1 :y1 y1 :x2 x2 :y2 y2
+;;		:work (make-pt2 :x1 x1 :y1 y1 :x2 x2 :y2 y2)
+		))
+
 ;; -----------------------------------------------------------------------------
 (defmethod print-object ((o layout) s)
   (print-unreadable-object (o s :type t )
+    (print-panel o s)
     (in-layout (layout o)
-      (format s "(~A,~A) ~Ax~A; [~A-~A ~A|~A] with:~%~A"
-	      x. y. w. h.
-	      ml. mr. mt. mb.
-	      payload.))))
+      (format s "with:~%~A"  payload.))))
 ;; -----------------------------------------------------------------------------
 (defun layout-insert (layout panel index)
   (in-layout (layout layout)
@@ -111,11 +141,11 @@
 (defun layout-clear (layout)
   (in-layout (layout layout)
     (dotimes (i panel-count)
-      (panel-detach (vector-pop payload.) layout))))
+      (panel-detached (vector-pop payload.) layout))))
 ;;==============================================================================
 ;;
-(defstruct (hlayout (:include layout)))
-(defstruct (vlayout (:include layout)))
+
+
 
 #||
 ;; -----------------------------------------------------------------------------

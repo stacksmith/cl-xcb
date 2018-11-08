@@ -18,6 +18,7 @@
 ;;	       (:file "higher/attributes")
 	       (:file "higher/win-base")
 	       (:file "higher/win-direct")
+	       (:file "higher/win-test")
 
 	       (:file "display/attributes")
 	       (:file "display/xbuf")
