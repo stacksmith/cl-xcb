@@ -7,19 +7,34 @@
       (layout-insert layout (make-panel  w1 0 width height) nil)
       )))
 
-(defmethod panel-draw ((panel panel) win)
-  (describe c)
+(defmethod panel-draw ((panel panel) win idx)
+
 
   (in-panel (panel panel)
     (format t "~%panel draw ~A" panel)
-    (w-foreign-values (vals :uint16 x1. :uint16 y1.  :uint16 x2. :uint16 y2.)
-      (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals)))
-    (w-foreign-values (vals :uint16 x2. :uint16 y1.  :uint16 x1. :uint16 y2.)
-      (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals)))))
-
+    (w-foreign-values (vals :uint16 x1. :uint16 y1.  :uint16 x2. :uint16 y2. ;;\
+			    :uint16 x1. :uint16 y2. ;;bot
+			    :uint16 x2. :uint16 y1. ;;/
+			    :uint16 x1. :uint16 y1. ;;top
+			    :uint16 x1. :uint16 y2. ;;left
+			    )
+      (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 6 vals)))
+    (comp-string (win-pic win) (+ 10 x1.) (+ 10 y1.) (pen-pic *pen-white*)
+		 (format nil "pane ~A" idx))
+    
+        ))
+;;----------------------------------------------------------------------------
 (defun win-test-redraw (win)
-  (loop for panel across (win-payload win) do
-       (panel-draw panel win)))
+  ;; erase
+    ;;(clear-window c (win-id win))
+  (in-pt2 (panel win)
+    (clear-area c 0 (win-id win) 0 0 width height) )
+  ;;  (flush c)
+ 
+  (loop for i from 0
+     for panel across (win-payload win) do
+       (panel-draw panel win i))
+  (flush c))
 ;;=============================================================================
 ;; Bufwin is a generic window with an off-screen buffer.
 (defstruct (win-test (:include win-direct) (:constructor make-win-test%)
@@ -52,7 +67,7 @@
 
 
 (defmethod win-on-expose ((win win-test) x y w h count event)
-
+  (format t "~%EXPO")
    (win-test-redraw win)  )
 
 ;; initialize 2 sub-panels
