@@ -179,9 +179,10 @@
 	   )
       (dump xbuf)
       (check (composite-glyphs-32
-	      c OP-OVER penpic
-	      pic +ARGB32+ (font-glyphset *font-normal*)
-	      0 0 cnt xbuf)))))
+	      c OP-OVER
+	      penpic pic
+	      +ARGB32+ (font-glyphset *font-normal*)
+	      0 0 (+ 8 (* 4  cnt)) xbuf)))))
 
 (defun init ()
   (init-xcb)

@@ -13,6 +13,8 @@
   (in-panel (panel panel)
     (format t "~%panel draw ~A" panel)
     (w-foreign-values (vals :uint16 x1. :uint16 y1.  :uint16 x2. :uint16 y2.)
+      (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals)))
+    (w-foreign-values (vals :uint16 x2. :uint16 y1.  :uint16 x1. :uint16 y2.)
       (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals)))))
 
 (defun win-test-redraw (win)
