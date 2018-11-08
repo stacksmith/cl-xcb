@@ -13,14 +13,10 @@
 ;; Note: for conversion, the bitmap is wider than expected to accomodate
 ;; antialiasing edges...
 ;;
-;; Currently this is done with a 1024-entry array for the low 1024 glyphs, and
-;; the rest is in a hashtable.
+;; Unicode (21-bit) glyph space is managed as 128-glyph pages in a
+;; 3-level trie, with a fastpath for ASCII (7-bit).  The trie is filled on
+;; as-needed basis, and contains advance values for the glyphs.
 ;;
-;; TODO: rebuild the lost trie implementation:
-;; - 128-glyph (7-bit) tries;
-;; - low trie (ASCII) is on fast path;
-;; - rest are in a 3-level system: leaves contain 128 glyphs, 'page-tables'
-;;   128 pointers provide an on-demand access system.
 (defparameter gs nil)
 
 ;; missing from ft2 due to old age...
@@ -35,9 +31,9 @@
   (setf *xcb-context* c))
 
 (defstruct (font(:constructor make-font%))
-  face glyphset pagemap
+  face glyphset
   ascender descender underline-position underline-thickness
-  toy-advance)
+  glyph-trie ascii )
 
 (defun make-font (&key path w h (hres 85) (yres 88))
   (let ((glyphset (generate-id c))
@@ -48,19 +44,22 @@
     (let* ((metrics (ft2::ft-size-metrics (ft2::ft-face-size face)))
 	   (x-scale (ft2::ft-size-metrics-x-scale metrics) )
 	   (y-scale (ft2::ft-size-metrics-y-scale metrics))
+	   
 	   ;; TODO:
 	   (font
 	    (make-font%
 	     :face  face
 	     :glyphset glyphset
-	     :pagemap (make-array #x2000 :element-type 'bit :initial-element 0)
-	     :toy-advance  (floor (ft2:get-advance face #\w))
+;;	     :pagemap (make-array #x2000 :element-type 'bit :initial-element 0)
+;;	     :toy-advance  (floor (ft2:get-advance face #\w))
 	     :ascender (/ (ft2::ft-size-metrics-ascender metrics) 64)
 	     :descender (/ (ft2::ft-size-metrics-descender metrics) 64)
 	     :underline-position (/ (* y-scale (ft2::ft-face-underline-position face)) (* 64 #x10000))
 	     :underline-thickness (/ (* y-scale (ft2::ft-face-underline-thickness face)) (* #x10000 64))
+	     :glyph-trie (make-array 128 :initial-element nil )
 	     )))
-      (load-glyph-page font 32)
+      ;; Pre-load ascii glyphs
+      (setf (font-ascii font)(load-glyphpage font 32))
       font)))
 
 
@@ -94,23 +93,6 @@
     (check (free-glyph-set c glyphset))
     (setf face nil)))
 
-#||
-;; load a glyphset
-(defun load-gs (filename size )
-    
-    (let ((f (ft2:new-face filename)))
-    (ft2:set-char-size f (* size 64)(* size 64) 85 88)
-
-    (let* ((gs (generate-id c))
-	   (cookie (create-glyph-set-checked c gs +ARGB32+ )))
-      (unless (null-pointer-p (request-check c cookie))
-	(error "at: create-glyph-set"))
-      (loop for n from 32 to 127 do	   (load-glyph f gs n))
-      (load-glyph f gs 992)
-      (load-glyph f gs 994)
-      (load-glyph f gs 1046)
-      (values gs f))))
-||#
 ;;==============================================================================
 ;; make an x glyph bitmap, and convert rows.  Free later!
 (defun make-glyph-bitmap (source w h s-pitch )
@@ -210,59 +192,73 @@
 	
 	;;(format *q* "WWWWW ~A ~A ~A ~&" (code-char code) (/ advance-x 64) (ft2::get-loaded-advance face nil))
 	(w-foreign-values (pcode :uint32 code)
-	  ;;	(format t "~%added glyph ~A" pcode)
+ 	  ;;	(format t "~%added glyph ~A" pcode)
 	  (check (add-glyphs *xcb-context* glyphset  1 pcode  glyphinfo (* 4 w h) x-bitmap)))
 	(foreign-free x-bitmap)
 	(foreign-free glyphinfo)
 	;; mark glyph as loaded
-	)))
+	advance-x))))
 
-  ;;==============================================================================
-  ;; Glyphs are loaded a page at a time, and each page has a bit in pagetable
-  ;; to indicate it's loaded.
-)
-(defun load-glyph-page (font code)
-  (with-slots (pagemap) font
-    (setf (bit pagemap (ash code -8)) 1)
-    (loop for n from (logand code #x1FFF00) to (+ code 255) do
-	 (load-glyph font n))))
-;;------------------------------------------------------------------------------
-;; check the code to make sure it's loaded via the pagetable.
-(defun glyph-assure-long (font code)
-  (declare (type fixnum code)
-	   (type font font))
-  (declare (optimize (speed 3) (safety 0) (debug 0)))
-  (with-slots (pagemap) font
-    (declare (type simple-bit-vector pagemap))
-    (if (zerop (bit pagemap (ash code -8)))
-	(load-glyph-page font code))))
-;;-----------------------------------------------------------------------------
-;; GLYPH-ASSURE - a quick inline check for page0, which is always loaded.
-;; otherwise, we check pagetable via function call.
-(declaim (notinline glyph-assure))
+;;==============================================================================
+;; Glyph-trie.
+;;
+;; There are 21 bits allocated to glyphs.  We shall divide these into sets of
+;; 128 - 7 bits each.  The bottom set is ASCII, and it has a fast path.
+;;
+;; The rest are stored in a trie as follows: level0 table has 128 slots for
+;; level 1 tables; level-1 tables contain maps of 128 positions for glyphs.
+;; Each position holds the glyph's advance value for width calculation.
+;;
+;; Accessing an empty table triggers a load of all 128 glyphs.
+;;
+;;==============================================================================
+;; Load an entire 128-glyph page containing the code
+(defun load-glyphpage (font code)
+  (let ((glyphpage (make-array 128 :element-type 'U32)))
+    (loop for i from 0 to 127
+       for index from (logand code #x1FFF80)
+       do (setf (aref glyphpage i)
+		(ash (load-glyph font index) -6)))
+    glyphpage))
 
+
+(declaim (inline glyph-assure))
 (defun glyph-assure (font code)
-  (declare (type fixnum code)
-	   (type font font))
+  (declare (type U32 code))
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (with-accessors ((ascii font-ascii)) font
+    (declare (type (simple-array U32) ascii))
+    (if (< code 128)
+	(aref ascii code)
+	(glyph-assure-long font code))))
+(defun glyph-assure-long (font code)
+  (declare (type U32 code))
+;;  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (with-accessors ((page0 font-glyph-trie) ) font
+    (declare (type simple-vector page0))
+    
+    (let* ((idx0 (ash code -14))
+	   (idx1 (ldb (byte 7 7) code))
+	   (page1
+	    (or (aref page0 idx0)
+		(setf (aref page0 idx0)
+		      (make-array 128 :initial-element nil)))))
+      (declare (type simple-vector page1))
+      (let ((page2
+	     (or (aref page1 idx1)
+		 (setf (aref page1 idx1)
+		       (load-glyphpage font code)))))
+	(declare (type simple-array page2))
+	(aref page2 (logand code #x7F))))))
+
+
+(defun ttt (font gt z)
   (declare (optimize (speed 3) (safety 0) (debug 0)))
 
-  (unless (< code 256)
-    (glyph-assure-long font code))
-  
-  (font-toy-advance font))
-
-
-
-
-
-(defun ttt (font z)
-  (declare (optimize (speed 3) (safety 0) (debug 0)))
-  (declare (type (unsigned-byte 32) z))
-
   
 
-    
-  (glyph-assure font z)
-  (+ z 3)
-    
+;;  (the fixnum (+ 5 (the fixnum (gt-ref font gt z))))
+
+
+      
   )

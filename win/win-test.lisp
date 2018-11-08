@@ -23,7 +23,7 @@
 			    )
       (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 6 vals)))
     (comp-string (win-pic win) (+ 3 x1.) (+ 12 y1.) (pen-pic *pen-white*)
-		 (format nil "pane ~A" idx))
+		 (format nil "pane ~A ¤" idx))
     
         ))
 ;;----------------------------------------------------------------------------
