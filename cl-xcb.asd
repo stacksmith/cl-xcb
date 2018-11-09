@@ -16,6 +16,8 @@
 	       (:file "win/pens")
 	       (:file "win/fonts")
 	       (:file "win/styles")
+	       (:file "win/chunks")
+	       
 	       (:file "win/event-handling")
 	       (:file "win/xcb-system")
 	       (:file "win/panels")
