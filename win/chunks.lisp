@@ -70,7 +70,7 @@
 
 ;;==============================================================================
 ;;
-;; SCREEN
+;; SECTION - a bunch of styled text ready for layout
 ;;
 (defstruct (section (:constructor make-section%))
   (buf nil :type foreign-pointer)
@@ -114,3 +114,36 @@
   (in-section (section section)
     (setf ptr. (inc-pointer buf. +xbuf-prefix+))))
 
+(defun section-first-xbuf (section)
+  (inc-pointer (section-buf section) +xbuf-prefix+))
+
+;;====================================
+;; layout
+(defstruct (line (:include pt2))
+  (ptr nil :type foreign-pointer)
+  )
+#||
+(defun layout-section (section pt2)
+  (prog ((x (pt2-x1 pt2))
+	 (y (pt2-y1 pt2))
+	 (p (section-first-xbuf section))
+	 line)
+   start-line
+   (setf line (make-line :x1 x :y1 y :x2 x :y2 y :ptr p))
+   append-line
+
+   (let ((prop-x (+ x (xbuf-pix-width p))))
+     (if (< prop-x (pt2-x2 pt2))
+	 (progn
+	   (setf x prop-x)
+	   (setf p (xbuf-next p))
+	   (when (pointer-eq p (section-ptr section))
+	     
+	     (go done))
+	   (go append-line))
+	 (go start-line)))
+   done
+   
+
+   ))
+||#
