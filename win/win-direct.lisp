@@ -17,7 +17,7 @@
 ;; since we want all instance to make the window above...
 (defmethod win-make-xcb-window ((win win-direct))
   (format t "~%win-make-xcb-window direct...")
-   (in-layout (layout win)
+   (in-container (container win)
      (with-foreign-slots ((root root-visual black-pixel) *setup* (:struct screen-t))
        (w-foreign-values (vals
 			 :uint32 black-pixel

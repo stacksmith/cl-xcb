@@ -5,17 +5,19 @@
   abgr64 pic)
 
 (defun make-pen (abgr64)
-;;  (format *q* "attributes:createing pen ~A~&" abgr64)
+  ;;  (format *q* "attributes:createing pen ~A~&" abgr64)
+  
   (with-ids (pixmap picture)
     (check (create-pixmap *conn* 32 pixmap root-window 1 1))
     (w-foreign-values (vals :uint32 REPEAT-NORMAL)
       ;; picture
       (check (create-picture *conn* picture pixmap +ARGB32+  CP-REPEAT vals)))
 	 ;; fill picture with color (using repeat)
-    (w-foreign-values (rect :int16 0 :int16 0 :uint16 1 :uint16 1)
-      (check (fill-rectangles *conn* OP-SRC picture abgr64 1 rect)))
-    (check (free-pixmap *conn* pixmap));; since it never changes?
-    (make-pen% :abgr64 abgr64 :pic picture)))
+	(w-foreign-values (rect :int16 0 :int16 0 :uint16 1 :uint16 1)
+	  (check (fill-rectangles *conn* OP-SRC picture abgr64 1 rect)))
+	(check (free-pixmap *conn* pixmap));; since it never changes?
+	(make-pen% :abgr64 abgr64 :pic picture))
+)
 
 
 ;;------------------------------------------------------------------------------

@@ -3,39 +3,36 @@
 ;; Fonts
 ;;
 ;; Some basic fonts to get started
-(defparameter *font-path-normal* "fonts/DejaVuSansMono.ttf")
-(defparameter *font-path-bold* "fonts/DejaVuSansMono-Bold.ttf")
-(defparameter *font-path-prop* "fonts/DejaVuSans.ttf")
+(defparameter *font-subdir* "fonts/")
+(defparameter *font-name-normal* "fonts/DejaVuSansMono.ttf")
+(defparameter *font-name-bold* "fonts/DejaVuSansMono-Bold.ttf")
+(defparameter *font-name-prop* "fonts/DejaVuSans.ttf")
 (defparameter *font-normal* nil)
 (defparameter *font-bold* nil)
 (defparameter *font-prop* nil)
 
-(defparameter *fonts* (make-array 256 :initial-element nil))
+(defparameter *fonts* (make-array 8 :adjustable t :fill-pointer 0))
 
 (defconstant  +font-normal+ 0)
 (defconstant  +font-bold+ 1)
+(defconstant  +font-prop+ 2)
+
 ;;=============================================================================
+(defun init-font (fontname w h)
+  (make-font :path(asdf:system-relative-pathname
+		   'cl-xcb (concatenate 'string *font-subdir* fontname))
+	     :w w
+	     :h h))
+
 (defun init-fonts ()
   (ft2init)
-  (setf *font-normal*
-	(make-font
-	 :path(asdf:system-relative-pathname 'cl-xcb *font-path-normal*)
-	 :w 640
-	 :h 640)
-	*font-bold*
-	(make-font
-	 :path (asdf:system-relative-pathname 'cl-xcb *font-path-bold*)
-	 :w 640
-	 :h 640)
+  (setf *font-normal* (init-font "DejaVuSansMono.ttf" 640 640)
+	*font-bold* (init-font "DejaVuSansMono-Bold.ttf" 640 640)
+	*font-prop* (init-font "DejaVuSans.ttf" 640 640))
 
-	*font-prop*
-	(make-font
-	 :path (asdf:system-relative-pathname 'cl-xcb *font-path-prop*)
-	 :w 640
-	 :h 640))
-  (ft2::get-loaded-advance (font-face *font-normal*) nil)
+  (vector-push *font-normal* *fonts*)
+  (vector-push *font-bold* *fonts*)
+  (vector-push *font-prop* *fonts*)
 
-  (setf (aref *fonts* +font-normal+) *font-normal*
-	(aref *fonts* +font-bold+) *font-bold*)
   )
  

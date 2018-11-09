@@ -153,7 +153,7 @@
     (check (create-pixmap  *conn* 32 pixmap root-window width height))
     (check (create-picture *conn* picture pixmap +ARGB32+ value-mask value-list))
     (pic-rect picture #xFFFF000000000000 0 0 width height)
-    (flush c)
+    (flush *conn*)
     (values picture pixmap)))
 
 (defun pic-rect (picture color x y width height)
@@ -239,7 +239,7 @@
   (make-win-direct 640 480;; :maker #'win-make-window1
 		 )
   (sleep 0.1)
-  (events-process)(flush c)
+  (events-process)(flush *conn*)
 
  )
 ;; (comp-string (win-pic *w*) 20 20 (pen-pic *pen-white*) "Hello World" (font-glyphset *font-normal*))

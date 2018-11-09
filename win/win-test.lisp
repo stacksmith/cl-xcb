@@ -1,13 +1,13 @@
 (in-package :xcb)
 
-(defun subpanels-create (layout)
-  (in-layout (layout layout)
+(defun subpanels-create (container)
+  (in-container (container container)
     (let* ((h1 (- height 16)))
-      (layout-insert layout (make-panel  0 h1 width height) nil)
-      (layout-insert layout (make-panel  0 0 width h1) nil)
+      (container-insert container (make-panel  0 h1 width height) nil)
+      (container-insert container (make-panel  0 0 width h1) nil)
 
-;;      (layout-insert layout (make-panel  0  0 w1 height) nil)
-;;      (layout-insert layout (make-panel  w1 0 width height) nil)
+;;      (container-insert container (make-panel  0  0 w1 height) nil)
+;;      (container-insert container (make-panel  w1 0 width height) nil)
       )))
 
 (defmethod panel-draw ((panel panel) win idx)
@@ -54,7 +54,7 @@
     (always-on-top *w*)
     win))
 
-(defun win-test-layout (win w h)
+(defun win-test-container (win w h)
   (let ((payload (win-payload win)))
     (in-panel (panel (aref payload  0))
       (setf y1. (- h 16)
@@ -67,7 +67,7 @@
 
 (defmethod win-on-resize ((win win-test) w h)
 
-  (win-test-layout win w h)
+  (win-test-container win w h)
 )
 
 

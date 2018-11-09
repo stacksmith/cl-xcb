@@ -15,6 +15,9 @@
 	       (:file "win/ft2")
 	       (:file "win/pens")
 	       (:file "win/fonts")
+	       (:file "win/styles")
+	       (:file "win/chunks")
+	       
 	       (:file "win/event-handling")
 	       (:file "win/xcb-system")
 	       (:file "win/panels")
@@ -23,10 +26,10 @@
 	       (:file "win/win-direct")
 	       (:file "win/win-test")
 
-	       (:file "display/attributes")
-	       (:file "display/xbuf")
+;;	       (:file "display/attributes")
+;;	       (:file "display/xbuf")
 ;;	       (:file "display/panel")
-	       (:file "display/display")
+;;	       (:file "display/display")
 	 
 
 	        ))
