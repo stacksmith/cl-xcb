@@ -197,3 +197,66 @@
 (deftype U5     () '(unsigned-byte 5)) 
 (deftype U2     () '(unsigned-byte 2))
 (deftype U1     () '(unsigned-byte 1))
+
+
+;;==============================================================================
+;; A lot is a simple-vector augmented for dynamic use as an unordered store.
+;;
+;; Add elements with lot-store - it returns an index.  Prior to insertion,
+;; call lot-prepare; it may allocate a new array, so store resultant array.
+;;
+;; Remove indexed elements with lot-remove (make sure elements are allocated!)
+;; Removed elements are no longer referred to, and may be GCd.
+;;
+;; Implementation notes: element 0 is reserved for free list chain.
+(defun make-lot (&optional (alloc-size 8) )
+  (let* ((array (make-array alloc-size :initial-element nil)))
+     (loop for i from (- alloc-size 2) downto 0 do
+	  (setf (svref array i) (1+ i)))
+     array))
+
+(defun lot-adjust (lot)
+  (let* ((old-size (length lot))
+	 (new-size (* old-size 2))
+	 (new (adjust-array lot new-size)))
+    (loop for i from old-size below (1- new-size) do
+	 (setf (svref new i)(1+ i))
+       finally (setf (svref new i) nil
+		     (svref new 0) old-size))
+    new)
+  )
+;; A lot may need resizing, in which case a new array may be returned!
+(declaim (inline lot-prepare))
+(defun lot-prepare (lot)
+  (declare (type simple-vector lot))
+  (if  (svref lot 0)
+      (lot-adjust lot)
+      lot))
+(declaim (inline lot-store))
+(defun lot-store (lot new-element)
+  (let ((index (svref lot 0)))
+    (declare (type U32 index))
+    (shiftf (svref lot 0) (svref lot index) new-element)
+    index))
+;; Danger: make sure the index is a real item - allocated and all or death!
+(declaim (inline lot-remove))
+(defun lot-remove (lot index)
+  (declare (type U32 index))
+  (declare (type simple-vector lot))
+  (shiftf (svref lot index) (svref lot 0) index)
+  lot)
+
+(defun lot-clear (lot)
+  (let ((alloc-size (length lot)))
+    (setf (svref lot (1- alloc-size)) nil)
+    (loop for i from (- alloc-size 2) downto 0
+       do (setf (svref lot i) (1+ i)))
+    lot)
+  )
+(defun ttt (q r)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (declare (type simple-vector q))
+  (declare (type U32 r))
+  (lot-remove q r)
+  
+  )
