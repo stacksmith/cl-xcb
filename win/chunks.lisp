@@ -72,6 +72,8 @@
 ;;
 ;; SECTION - a bunch of styled text ready for layout
 ;;
+;; terminated by 0-length xbuf during layout.
+;;
 (defstruct (section (:constructor make-section%))
   (buf nil :type foreign-pointer)
   (ptr nil :type foreign-pointer) ;; write pointer
@@ -105,7 +107,6 @@
 	   (princ #\   stream)))))
 
 
-
 (defun section-append (section string  styndex)
   (in-section (section section)
     (setf ptr. (xbuf-set ptr. string styndex))))
@@ -117,11 +118,22 @@
 (defun section-first-xbuf (section)
   (inc-pointer (section-buf section) +xbuf-prefix+))
 
+(defun section-terminate (section)
+  (setf (mem-ref (section-ptr section) :UINT32) 0))
+
+(defun section-end-p (ptr)
+  "Is this section "
+  (zerop (mem-ref ptr :UINT32)))
+
+(defun section-next-xbuf (ptr)
+  "next chunk of section or nil if done"
+  (let ((next-ptr (xbuf-next ptr)))
+    (unless (section-end-p next-ptr)
+      next-ptr)))
 ;;====================================
-;; layout
-(defstruct (line (:include pt2))
-  (ptr nil :type foreign-pointer)
-  )
+;; A line structure, with geometry
+(defstruct (line (:include geo))
+  (ptr nil :type foreign-pointer))
 #||
 (defun layout-section (section pt2)
   (prog ((x (pt2-x1 pt2))

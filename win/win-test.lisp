@@ -30,7 +30,7 @@
 (defun win-test-redraw (win)
   ;; erase
     ;;(clear-window *conn* (win-id win))
-  (in-pt2 (panel win)
+  (in-geo (panel win)
     (clear-area *conn* 0 (win-id win) 0 0 width height) )
   ;;  (flush c)
  

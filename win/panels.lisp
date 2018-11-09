@@ -16,19 +16,24 @@
     (replace array array :start1 at :start2 (1+ at)))
   (vector-pop array))
 
-(defstruct pt2
+;;==============================================================================
+;; GEO    Geometry
+;;
+;; Geometry of screen objects is represented by two points, upper left and
+;; lower right.
+(defstruct geo
   (x1 0 :type S16)
   (y1 0 :type S16)
   (x2 0 :type S16)
   (y2 0 :type S16))
 
-(defmacro in-pt2 ((name pt2) &body body)
-  `(let ((,name ,pt2))
-     (with-accessors ((x1. pt2-x1) (y1. pt2-y1)
-		      (x2. pt2-x2) (y2. pt2-y2)) ,name
+(defmacro in-geo ((name geo) &body body)
+  `(let ((,name ,geo))
+     (with-accessors ((x1. geo-x1) (y1. geo-y1)
+		      (x2. geo-x2) (y2. geo-y2)) ,name
        (symbol-macrolet ((width  (- x2. x1.))
 			 (height (- y2. y1.))
-			 (this-pt2 ,name))
+			 (this-geo ,name))
 	 (macrolet ((translate (x y)
 		      `(let ((x ,x) (y ,y))
 			 (incf x1. x) (incf x2. x)
@@ -38,25 +43,25 @@
 			      (incf y1. ,top) (decf  y2. ,bottom))))
 	   ,@body)))))
 
-(defun print-pt2 (o s)
-  (in-pt2 (pt2 o)
+(defun print-geo (o s)
+  (in-geo (geo o)
     (format s "(~A,~A)(~A,~A)"      x1. y1. x2. y2.)))
-(defmethod print-object ((o pt2) s)
+(defmethod print-object ((o geo) s)
   (print-unreadable-object (o s :type t )
-    (print-pt2 o s)))
+    (print-geo o s)))
 
 ;;==============================================================================
 ;;
 ;; A panel is a visual object occupying space in a window.
 ;;
-(defstruct (panel (:include pt2) (:constructor make-panel%))
+(defstruct (panel (:include geo) (:constructor make-panel%))
   (dad nil :type t )
-;;  (work (make-pt2)  :type pt2)
+;;  (work (make-geo)  :type geo)
   )
 
 (defmacro in-panel ((name panel) &body body)
   `(let ((,name ,panel))
-     (in-pt2 (,name ,panel)
+     (in-geo (,name ,panel)
        (with-accessors (;;(work. panel-work)
 			(dad. panel-dad) ;;(fixed. panel-fixed)
 			) ,name
@@ -65,7 +70,7 @@
 
 (defun make-panel (x1 y1 x2 y2 &optional)
   (make-panel% :x1 x1 :y1 y1 :x2 x2 :y2 y2
-;;	       :work (make-pt2 :x1 x1 :y1 y1 :x2 x2 :y2 y2)
+;;	       :work (make-geo :x1 x1 :y1 y1 :x2 x2 :y2 y2)
 	       ))	
 
 
@@ -74,7 +79,7 @@
 ;; -----------------------------------------------------------------------------
 (defun print-panel (o s)
   (in-panel (panel o)
-    (print-pt2 o s) ;;(print-pt2 work. s)
+    (print-geo o s) ;;(print-geo work. s)
     ))
 (defmethod print-object ((o panel) s)
   (print-unreadable-object (o s :type t )
@@ -108,7 +113,7 @@
 	   ,@body)))))
 (defun make-container (x1 y1 x2 y2 )
   (make-container% :x1 x1 :y1 y1 :x2 x2 :y2 y2
-;;		:work (make-pt2 :x1 x1 :y1 y1 :x2 x2 :y2 y2)
+;;		:work (make-geo :x1 x1 :y1 y1 :x2 x2 :y2 y2)
 		))
 
 ;; -----------------------------------------------------------------------------
