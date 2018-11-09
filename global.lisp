@@ -70,10 +70,10 @@
 	(lispname-checked (intern (concatenate 'string (symbol-name lispname) "-CHECKED"))))
     `(progn
        (defcfun (,cname ,lispname) :uint32
-	 (c        :pointer)
+	 (conn        :pointer)
 	 ,@body)
        (defcfun (,cname-checked ,lispname-checked) :uint32
-	 (c        :pointer)
+	 (conn        :pointer)
 	 ,@body))))
 
 
@@ -120,8 +120,9 @@
 
 ;; Create an environment with generated id
 (defmacro with-ids (vars &body body)
-  (let ((lets (mapcar (lambda (v) `(,v (generate-id *conn*))) vars)))
-    `(let (,@lets)
+  (let ((lets (mapcar (lambda (v) `(,v (generate-id conn))) vars)))
+    `(let* ((conn *conn*)
+	    ,@lets)
        ,@body)))
 
 (defun group (source n)
@@ -166,13 +167,13 @@
 ;;=============================================================================
 ;; atom
 ;;
-(defun easy-atom (c name &optional only-if-exists)
+(defun easy-atom (conn name &optional only-if-exists)
   (let ((atom-cookie
-	 (xcb::intern-atom c (if only-if-exists 1 0)
+	 (xcb::intern-atom conn (if only-if-exists 1 0)
 			   (length name)
 			   name)))
     (when atom-cookie
-      (let ((reply (xcb::intern-atom-reply c atom-cookie
+      (let ((reply (xcb::intern-atom-reply conn atom-cookie
 					   (null-pointer))))
 	(prog1
 	    (mem-ref reply :uint 8)

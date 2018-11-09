@@ -94,81 +94,65 @@
 (defmethod panel-detached ((panel panel) layout)
   (setf (panel-dad panel) nil))
 ;;==============================================================================
-;; Layout: a panel containing subpanels
-(defstruct (layout (:include panel) (:constructor make-layout%))
+;; Container: a panel containing subpanels
+;;
+(defstruct (container (:include panel) (:constructor make-container%))
   (payload (make-array 4 :adjustable t :fill-pointer 0)))
 
-(defmacro in-layout ((name layout) &body body)
-  `(let ((,name ,layout))
+(defmacro in-container ((name container) &body body)
+  `(let ((,name ,container))
      (in-panel (,name ,name)
-       (with-accessors ((payload. layout-payload)) ,name
+       (with-accessors ((payload. container-payload)) ,name
 	 (symbol-macrolet ((idx. (fill-pointer payload.))
 			   (panel-count (fill-pointer payload.)))
 	   ,@body)))))
-(defun make-layout (x1 y1 x2 y2 )
-  (make-layout% :x1 x1 :y1 y1 :x2 x2 :y2 y2
+(defun make-container (x1 y1 x2 y2 )
+  (make-container% :x1 x1 :y1 y1 :x2 x2 :y2 y2
 ;;		:work (make-pt2 :x1 x1 :y1 y1 :x2 x2 :y2 y2)
 		))
 
 ;; -----------------------------------------------------------------------------
-(defmethod print-object ((o layout) s)
+(defmethod print-object ((o container) s)
   (print-unreadable-object (o s :type t )
     (print-panel o s)
-    (in-layout (layout o)
+    (in-container (container o)
       (format s "with:~%~A"  payload.))))
 ;; -----------------------------------------------------------------------------
-(defun layout-insert (layout panel index)
-  (in-layout (layout layout)
+(defun container-insert (container panel index)
+  (in-container (container container)
     (array-insert-element payload. panel index)
-    (panel-attached panel layout)
-    (re-layout layout)))
+    (panel-attached panel container)
+    (re-layout container)))
  
 
-(defun layout-find (layout panel)
-  (find panel (layout-payload layout)))
+(defun container-find (container panel)
+  (find panel (container-payload container)))
 
-(defun layout-remove-at (layout index)
-  (array-remove-element (layout-payload layout) index))
+(defun container-remove-at (container index)
+  (array-remove-element (container-payload container) index))
 
-(defun layout-remove-panel (layout panel)
-  (let ((index (layout-find layout panel)))
+(defun container-remove-panel (container panel)
+  (let ((index (container-find container panel)))
     (if index
 	(progn
-	  (layout-remove-at layout index)
-	  (panel-detached panel layout))
+	  (container-remove-at container index)
+	  (panel-detached panel container))
 	(error ()))))
 
-(defun layout-clear (layout)
-  (in-layout (layout layout)
+(defun container-clear (container)
+  (in-container (container container)
     (dotimes (i panel-count)
-      (panel-detached (vector-pop payload.) layout))))
+      (panel-detached (vector-pop payload.) container))))
 ;;==============================================================================
 ;;
 
 
 
-#||
-;; -----------------------------------------------------------------------------
-(defgeneric change-size (panel w h))
-(defgeneric change-position (panel x y))
-(defgeneric draw (panel win))
-(defgeneric layout (panel &key &allow-other-keys))
-;;(defgeneric on-key)
 
-(defmethod change-size ((panel panel) w h)
-  )
-(defmethod change-position ((panel panel) x y)
-  )
 
-(defmethod draw ((panel panel) win)
-  (in-panel (panel)
-    (clear-area c 0 (id win) x. y. w. h.)
-    (w-foreign-values (vals :uint16 min-x :uint16 min-y :uint16 max-x :uint16 max-y)
-      (check (poly-line c COORD-MODE-ORIGIN (id win) (gc win) 2 vals))
-      ;; ostensibly, we finished drawing
-      (xcb::flush c) ;;TODO
-      )))
-||#
+  
+
+  
 
 (defmethod re-layout ((panel panel))
   )

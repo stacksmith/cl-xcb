@@ -277,14 +277,14 @@
 
 
 (defcfun ("xcb_lookup_color" xcb-lookup-color) :UINT32
-    (c        :pointer)
+    (conn        :pointer)
   (cmap            :UINT32)
   (namelen         :UINT16)
   (name            :string))
 
 (defcfun("xcb_lookup_color_reply" xcb-lookup-color-reply)
     (:pointer (:struct lookup-color-reply-t))
-  (c        :pointer)
+  (conn        :pointer)
   (cookie          :UINT32)
   (err             (:pointer (:struct generic-error-t))))
 

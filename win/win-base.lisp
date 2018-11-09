@@ -8,7 +8,7 @@
 
 ;;=============================================================================
 ;; Bufwin is a generic window with an off-screen buffer.
-(defstruct (win-base (:include layout) (:conc-name win-) (:constructor make-win-base%))
+(defstruct (win-base (:include container) (:conc-name win-) (:constructor make-win-base%))
   (id 0 :type U32)
   (moved nil :type t)  (resized nil :type t) 
   (gc 0 :type U32))
@@ -30,7 +30,7 @@
 ;; default one.  Each window may have a different one specified at creation
 ;; This method ensures that the class win-make-xcb-window will be called.
 (defmethod win-make-xcb-window ((win win-base))
-  (in-layout (layout win)
+  (in-container (container win)
     (with-foreign-slots ((root root-visual) *setup* (:struct screen-t))
       (w-foreign-values (vals
 			 ;;:uint32 black-pixel
@@ -88,9 +88,9 @@
 ;; Panel protocol
 ;;
 ;; window is a topmost panel, so we do not do anything..
-(defmethod panel-attached ((panel win-base) layout)
+(defmethod panel-attached ((panel win-base) container)
   )
-(defmethod panel-detached ((panel win-base) layout)
+(defmethod panel-detached ((panel win-base) container)
   )
 
 ;;==============================================================================
@@ -136,7 +136,7 @@
 ;;
 (defmethod win-on-configure-notify ((win win-base) synth wx wy ww wh e)
   (when synth
-    (in-layout (layout win)
+    (in-container (container win)
       (with-accessors ((resized. win-resized) (moved. win-moved)) win
       	(let ((size (or (/= width ww) (/= height wh)))
 	      (pos  (or (/= x1. wx) (/= y1. wy))))
@@ -175,7 +175,7 @@
   )
 ;;------------------------------------------------------------------------------
 (defun win-redraw (win wx wy ww wh)
-  (in-layout (layout win)
+  (in-container (container win)
     (with-slots (gc id) win
       (check (clear-area *conn* 0 id 0 0 width height))
       (w-foreign-values (vals :uint16 0 :uint16 0  :uint16 width :uint16 height)
