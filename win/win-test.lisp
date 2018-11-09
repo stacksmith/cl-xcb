@@ -21,7 +21,7 @@
 			    :uint16 x1. :uint16 y1. ;;top
 			    :uint16 x1. :uint16 y2. ;;left
 			    )
-      (check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 6 vals)))
+      (check (poly-line *conn* COORD-MODE-ORIGIN (win-id win) (win-gc win) 6 vals)))
     (comp-string (win-pic win) (+ 3 x1.) (+ 12 y1.) (pen-pic *pen-white*)
 		 (format nil "pane ~A ¤" idx))
     
@@ -29,15 +29,15 @@
 ;;----------------------------------------------------------------------------
 (defun win-test-redraw (win)
   ;; erase
-    ;;(clear-window c (win-id win))
+    ;;(clear-window *conn* (win-id win))
   (in-pt2 (panel win)
-    (clear-area c 0 (win-id win) 0 0 width height) )
+    (clear-area *conn* 0 (win-id win) 0 0 width height) )
   ;;  (flush c)
  
   (loop for i from 0
      for panel across (win-payload win) do
        (panel-draw panel win i))
-  (flush c))
+  (flush *conn*))
 ;;=============================================================================
 ;; Bufwin is a generic window with an off-screen buffer.
 (defstruct (win-test (:include win-direct) (:constructor make-win-test%)
@@ -57,9 +57,11 @@
 (defun win-test-layout (win w h)
   (let ((payload (win-payload win)))
     (in-panel (panel (aref payload  0))
-      (setf y2. h))
+      (setf y1. (- h 16)
+	    y2. h
+	    x2. w))
     (in-panel (panel (aref payload  1))
-      (setf y2. h
+      (setf y2. (- h 16)
 	    x2. w)))
   (win-test-redraw win))
 
@@ -80,6 +82,6 @@
   (make-win-test 640 480;; :maker #'win-make-window1
 		 )
   (sleep 0.1)
-  (events-process)(flush c)
+  (events-process)(flush *conn*)
 
  )

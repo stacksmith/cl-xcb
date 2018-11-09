@@ -18,7 +18,7 @@
 (defmethod win-make-xcb-window ((win win-direct))
   (format t "~%win-make-xcb-window direct...")
    (in-layout (layout win)
-     (with-foreign-slots ((root root-visual black-pixel) s (:struct screen-t))
+     (with-foreign-slots ((root root-visual black-pixel) *setup* (:struct screen-t))
        (w-foreign-values (vals
 			 :uint32 black-pixel
 			 :uint32 GRAVITY-NORTH-WEST ;; Leave contents on resize.
@@ -27,7 +27,7 @@
 				    ;;EVENT-MASK-RESIZE-REDIRECT
 				    ;; EVENT-MASK-BUTTON-PRESS
 				    EVENT-MASK-KEY-PRESS )) 
-	(check (create-window c COPY-FROM-PARENT (win-id win)
+	(check (create-window *conn* COPY-FROM-PARENT (win-id win)
 			      root
 			      x1. y1. width height 10
 			      WINDOW-CLASS-INPUT-OUTPUT
@@ -38,11 +38,11 @@
 
 (defmethod init-win :after ((win win-direct) &key &allow-other-keys)
   (with-slots (pic id) win
-    (setf pic (generate-id c))
-    (check (create-picture c pic id +RGB24+ 0 (null-pointer)))))
+    (setf pic (generate-id *conn*))
+    (check (create-picture *conn* pic id +RGB24+ 0 (null-pointer)))))
 
 (defmethod on-destroy :before ((win win-direct))
-  (check (free-picture c (win-pic win)))
+  (check (free-picture *conn* (win-pic win)))
 )
 
 ;;==============================================================================
@@ -56,7 +56,7 @@
   (format t "RESIZED")
   t)
 
-(defmethod win-on-expose ((win win-direct) x y w h c event)  )
+(defmethod win-on-expose ((win win-direct) x y w h *conn* event)  )
 ;;------------------------------------------------------------------------------
 
 

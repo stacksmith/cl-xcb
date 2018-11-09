@@ -51,7 +51,6 @@
 ;;
 (defun event-dispatch (event)
   (declare (type simple-vector *event-dispatch-table* ))
-  (format t "~%Event-dispatch c ~A" c)
   (let ((i (event-type event)))
    ;; (format *q* "~%(~A)~A: " ord (aref events i))
     (if (< i EVENT-LAST-EVENT)
@@ -62,8 +61,8 @@
 
 (defun event-step (&optional (block nil))
   (let ((e (if block
-	       (wait-for-event c)
-	       (poll-for-event c))))
+	       (wait-for-event *conn*)
+	       (poll-for-event *conn*))))
     (unless (null-pointer-p e)
       (event-dispatch e))))
 
@@ -93,7 +92,7 @@
 ;; A simple unthreaded event processor
 ;; process all available events.  Return count of events processed.
 (defun events-process ()
-  (loop for e = (poll-for-event c)
+  (loop for e = (poll-for-event *conn*)
      for i from 0
      until (null-pointer-p e) do
        (event-dispatch e)

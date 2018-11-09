@@ -7,8 +7,8 @@
 ;;=============================================================================
 ;; Global XCB data
 
-(defparameter c nil) ;; xcb connection
-(defparameter s nil) ;; xcb setup
+(defparameter *conn* nil) ;; xcb connection
+(defparameter *setup* nil) ;; xcb setup
 ;;(defparameter w nil)
 (defparameter root-window nil)
 (defparameter +RGB24+ nil)
@@ -39,16 +39,16 @@
 ;;
 ;; Set up connection; get root data, pixel formats.  Prepare protocol atoms.
 (defun init-xcb ()
-  (setf c (connect (null-pointer)(null-pointer)))
-  (setf s (getf (setup-roots-iterator (get-setup c)) 'data))
-  (setf root-window (mem-ref s :uint32))
-  (let ((formats (util-query-formats c)))
+  (setf *conn* (connect (null-pointer)(null-pointer)))
+  (setf *setup* (getf (setup-roots-iterator (get-setup *conn*)) 'data))
+  (setf root-window (mem-ref *setup* :uint32))
+  (let ((formats (util-query-formats *conn*)))
     (setf +RGB24+ (mem-ref (util-find-standard-format
 			  formats PICT-STANDARD-RGB-24) :uint32)
 	  +ARGB32+ (mem-ref (util-find-standard-format
 			   formats PICT-STANDARD-ARGB-32) :uint32)
-	  +WM-PROTOCOLS+ (easy-atom c "WM_PROTOCOLS")
-	  +WM-DELETE-WINDOW+ (easy-atom c "WM_DELETE_WINDOW")
+	  +WM-PROTOCOLS+ (easy-atom *conn* "WM_PROTOCOLS")
+	  +WM-DELETE-WINDOW+ (easy-atom *conn* "WM_DELETE_WINDOW")
 )))
 
 
@@ -150,8 +150,8 @@
 				   (value-list (null-pointer)))
   "return picture and pixmap ids"
   (with-ids (pixmap picture)
-    (check (create-pixmap  c 32 pixmap root-window width height))
-    (check (create-picture c picture pixmap +ARGB32+ value-mask value-list))
+    (check (create-pixmap  *conn* 32 pixmap root-window width height))
+    (check (create-picture *conn* picture pixmap +ARGB32+ value-mask value-list))
     (pic-rect picture #xFFFF000000000000 0 0 width height)
     (flush c)
     (values picture pixmap)))
@@ -159,7 +159,7 @@
 (defun pic-rect (picture color x y width height)
   (w-foreign-values
       (rect :int16 x :int16 y :int16 width :uint16 height)
-    (check (fill-rectangles c OP-OVER picture color 1 rect))))
+    (check (fill-rectangles *conn* OP-OVER picture color 1 rect))))
 
 
 
@@ -184,7 +184,7 @@
 	   )
 ;;      (dump xbuf)
       (check (composite-glyphs-32
-	      c OP-OVER
+	      *conn* OP-OVER
 	      penpic pic
 	      +ARGB32+ (font-glyphset *font-normal*)
 	      0 0 (+ 8 (* 4  cnt)) xbuf)))))
@@ -211,10 +211,10 @@
 
 (defun lookup-color (name &optional (alpha #xFFFF))
   "Lookup an X11 color as ABGR64, mixing in alpha."
-  (with-foreign-slots ((default-colormap) s (:struct screen-t))
-    (let ((cookie (xcb-lookup-color c default-colormap (length name) name)))
+  (with-foreign-slots ((default-colormap) *setup* (:struct screen-t))
+    (let ((cookie (xcb-lookup-color *conn* default-colormap (length name) name)))
 ;;      (format t "~%~A... cookie "cookie)
-      (let ((reply (xcb-lookup-color-reply c cookie (null-pointer)))
+      (let ((reply (xcb-lookup-color-reply *conn* cookie (null-pointer)))
 	    result)
 	(format t "~%~A... rep "reply)
 	(with-foreign-slots ((exact-red exact-green exact-blue) reply

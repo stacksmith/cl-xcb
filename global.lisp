@@ -120,7 +120,7 @@
 
 ;; Create an environment with generated id
 (defmacro with-ids (vars &body body)
-  (let ((lets (mapcar (lambda (v) `(,v (generate-id c))) vars)))
+  (let ((lets (mapcar (lambda (v) `(,v (generate-id *conn*))) vars)))
     `(let (,@lets)
        ,@body)))
 

@@ -31,7 +31,7 @@
 ;; This method ensures that the class win-make-xcb-window will be called.
 (defmethod win-make-xcb-window ((win win-base))
   (in-layout (layout win)
-    (with-foreign-slots ((root root-visual) s (:struct screen-t))
+    (with-foreign-slots ((root root-visual) *setup* (:struct screen-t))
       (w-foreign-values (vals
 			 ;;:uint32 black-pixel
 			 :uint32 GRAVITY-NORTH-WEST ;; Leave contents on resize.
@@ -40,7 +40,7 @@
 				    ;;EVENT-MASK-RESIZE-REDIRECT
 				    ;; EVENT-MASK-BUTTON-PRESS
 				    EVENT-MASK-KEY-PRESS )) 
-	(check (create-window c COPY-FROM-PARENT (win-id win)
+	(check (create-window *conn* COPY-FROM-PARENT (win-id win)
 			      root
 			      x1. y1. width height 10
 			      WINDOW-CLASS-INPUT-OUTPUT
@@ -56,9 +56,10 @@
   (format t "~%init-instance of ~A "win)
   (with-slots ( id gc ) win
     (with-foreign-slots ((root root-visual white-pixel black-pixel
-			       root-depth) s (:struct screen-t))
+			       root-depth) *setup* (:struct screen-t))
       ;; WINDOW
-      (setf id (generate-id c)) ;; window id
+      (setf id (generate-id *conn*);
+	    ) ;; window id
       (if maker
 	  (funcall maker win)
 	  (win-make-xcb-window win))
@@ -68,18 +69,18 @@
       (window-register id win)
       ;; Make it deletable
       (w-foreign-values (patom :uint32 +WM-DELETE-WINDOW+)
-	(check (change-property c PROP-MODE-REPLACE id +WM-PROTOCOLS+				4 32 1 patom))
+	(check (change-property *conn* PROP-MODE-REPLACE id +WM-PROTOCOLS+				4 32 1 patom))
 	)
       ;; GC
-      (setf gc (generate-id c))
+      (setf gc (generate-id *conn*))
       (w-foreign-values (vals :uint32 white-pixel
 			      :uint32 0)
-	(check (create-gc c gc id (+ GC-FOREGROUND    GC-GRAPHICS-EXPOSURES) vals))
+	(check (create-gc *conn* gc id (+ GC-FOREGROUND    GC-GRAPHICS-EXPOSURES) vals))
 	))
 
-    (map-window c id)
+    (map-window *conn* id)
     (format t "mapped")
-    (flush c)
+    (flush *conn*)
     win))
 
 
@@ -111,8 +112,8 @@
 ;;
 ;; Use win-on-destroy-notify to do actual bookkeeping
 (defmethod win-destroy ((win win-base))
-  (check (destroy-window c (win-id win)))
-  (flush c))
+  (check (destroy-window *conn* (win-id win)))
+  (flush *conn*))
 
 
 ;;==============================================================================
@@ -168,7 +169,7 @@
  )
 ;;------------------------------------------------------------------------------
 (defmethod win-on-expose ((win win-base) x y width height count event)
-  ;;(clear-area c 0 (id win) x y width height)
+  ;;(clear-area *conn* 0 (id win) x y width height)
   (win-redraw win x y width height)
   
   )
@@ -176,12 +177,12 @@
 (defun win-redraw (win wx wy ww wh)
   (in-layout (layout win)
     (with-slots (gc id) win
-      (check (clear-area c 0 id 0 0 width height))
+      (check (clear-area *conn* 0 id 0 0 width height))
       (w-foreign-values (vals :uint16 0 :uint16 0  :uint16 width :uint16 height)
-	(check (poly-line c COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals))
+	(check (poly-line *conn* COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals))
 	
 	;; ostensibly, we finished drawing
-	(xcb::flush c)
+	(xcb::flush *conn*)
 	))))
 
 ;;=============================================================================
@@ -190,7 +191,7 @@
   (let ((len (length name))
 	(str (foreign-string-alloc name)))
     (w-foreign-values (buf :uint32 8)
-      (check (change-property c PROP-MODE-REPLACE (win-id win) ATOM-WM-NAME
+      (check (change-property *conn* PROP-MODE-REPLACE (win-id win) ATOM-WM-NAME
 			      ATOM-STRING 8 len str)))
     (foreign-free str)))
 
@@ -205,14 +206,14 @@
 (defun wintest ()
   (make-win-base 640 480)
   (sleep 0.1)
-  (events-process)(flush c)
+  (events-process)(flush *conn*)
 
  ;; (test-out "Hello World" *w* 20 20 )
   )
 (defun always-on-top (win)
   ;;
-  (let ((NET-WM-STATE       (easy-atom c "_NET_WM_STATE"))
-	(NET-WM-STATE-ABOVE (easy-atom c "_NET_WM_STATE_ABOVE")))
+  (let ((NET-WM-STATE       (easy-atom *conn* "_NET_WM_STATE"))
+	(NET-WM-STATE-ABOVE (easy-atom *conn* "_NET_WM_STATE_ABOVE")))
     (w-foreign-values (event
 		       :uint8  EVENT-Client-Message
 		       :UINT8  32 ;ICCM
@@ -224,7 +225,7 @@
 		       :UINT32 0
 		       :UINT32 0
 		       :UINT32 0)
-      (check (send-event c 0 root-window
+      (check (send-event *conn* 0 root-window
 			 (logior EVENT-MASK-SUBSTRUCTURE-REDIRECT
 				 EVENT-MASK-STRUCTURE-NOTIFY)
 			 event))

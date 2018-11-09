@@ -28,7 +28,7 @@
 
 (defun ft2init ()
   (set-lcd-filter& ft2::*library* 1)
-  (setf *xcb-context* c))
+  (setf *xcb-context* *conn*))
 
 (defstruct (font(:constructor make-font%))
   face glyphset
@@ -36,10 +36,10 @@
   glyph-trie ascii )
 
 (defun make-font (&key path w h (hres 85) (yres 88))
-  (let ((glyphset (generate-id c))
+  (let ((glyphset (generate-id *conn*))
 	(face (ft2:new-face path)))
     (ft2:set-char-size face w h hres yres)
-    (check (create-glyph-set c glyphset +ARGB32+ ))
+    (check (create-glyph-set *conn* glyphset +ARGB32+ ))
     
     (let* ((metrics (ft2::ft-size-metrics (ft2::ft-face-size face)))
 	   (x-scale (ft2::ft-size-metrics-x-scale metrics) )
@@ -78,7 +78,7 @@
     (ft2:set-char-size face (* size 64)(* size 64) 85 88)
     
     (setf glyphset )
-    (check (create-glyph-set c glyphset +ARGB32+ ))
+    (check (create-glyph-set *conn* glyphset +ARGB32+ ))
     ;; low glyphs are always loaded
     (loop for n from 0 to 255 do
 	  (load-glyph f n))
@@ -90,7 +90,7 @@
 ||#
 (defmethod destroy ((f font))
   (with-slots (glyphset face) f
-    (check (free-glyph-set c glyphset))
+    (check (free-glyph-set *conn* glyphset))
     (setf face nil)))
 
 ;;==============================================================================
