@@ -17,10 +17,11 @@
 	       (:file "win/fonts")
 	       (:file "win/styles")
 ;;	       (:file "win/chunks")
+	       (:file "win/xbuf")
 	       
 	       (:file "win/event-handling")
 	       (:file "win/xcb-system")
-	       (:file "win/panels")
+	       (:file "win/panels") 
 ;;	       (:file "win/attributes")
 	       (:file "win/win-base")
 	       (:file "win/win-direct")

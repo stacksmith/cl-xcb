@@ -71,7 +71,7 @@
 
 (defun xbuf-set (xbuf string styndex owner-index)
   (setf (xbuf-owner xbuf) owner-index
-	(xbuf-attr xbuf) (ash styndex 1))
+	(xbuf-attr xbuf) (1+ (ash styndex 1)))
   (prog ()
      (loop for i from 0 below (length string)
 	for offset from 16 
@@ -87,4 +87,4 @@
 	    ;; bump pointer to next position
 	    (return-from xbuf-set retval)))
      big
-     (xbuf32-set xbuf string styndex owner-index)))
+     (return-from xbuf-set (xbuf32-set xbuf string styndex owner-index))))
