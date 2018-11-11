@@ -17,7 +17,7 @@
 	       (:file "win/fonts")
 	       (:file "win/styles")
 ;;	       (:file "win/chunks")
-	       (:file "win/xbuf")
+;;	       (:file "win/xbuf")
 	       
 	       (:file "win/event-handling")
 	       (:file "win/xcb-system")

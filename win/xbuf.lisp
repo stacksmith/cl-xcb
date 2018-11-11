@@ -1,5 +1,5 @@
 (in-package :xcb)
-;; version 2: 6-bytes overhead
+;; version 2: 8-bytes overhead, plus backpointer.
 ;;  Chunked screen support.  Layout not good.
 ;;
 ;; We use a single foreign buffer for all XCB xrender string data (xbufs).
