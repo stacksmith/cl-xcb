@@ -51,7 +51,7 @@
     (setf *w* win)
     (subpanels-create win)
     (init-win win :maker maker )
-    (always-on-top *w*)
+    (xwin-fix-always-on-top  (win-id *w*) 1)
     win))
 
 (defun win-test-container (win w h)
@@ -81,7 +81,7 @@
 (defun test2 ()
   (make-win-test 640 480;; :maker #'win-make-window1
 		 )
-  (always-on-top *w*)
+
   (sleep 0.5)
   (events-process)(flush *conn*)
 

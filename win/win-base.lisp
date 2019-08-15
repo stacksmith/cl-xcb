@@ -2,6 +2,31 @@
 
 
 (defparameter *w* nil)
+;;----------------------------------------------------------------------------
+;; TO make a window display a GO-AWAY box and be deletable:
+(defun xwin-fix-deletable (id)
+  (w-foreign-values (patom :uint32 +WM-DELETE-WINDOW+)
+    (check (change-property *conn* PROP-MODE-REPLACE id +WM-PROTOCOLS+				4 32 1 patom))))
+
+(defun xwin-fix-always-on-top (id on/off)
+  ;;
+  (let ((NET-WM-STATE       (easy-atom *conn* "_NET_WM_STATE"))
+	(NET-WM-STATE-ABOVE (easy-atom *conn* "_NET_WM_STATE_ABOVE")))
+    (w-foreign-values (event
+		       :uint8  EVENT-Client-Message
+		       :UINT8  32 ;ICCM
+		       :UINT16 0  ;sequence
+		       window-t id
+		       atom-t   NET-WM-STATE ;type
+		       :UINT32 on/off ;NET-WM-STATE-ADD
+		       :UINT32 NET-WM-STATE-ABOVE
+		       :UINT32 0
+		       :UINT32 0
+		       :UINT32 0)
+      (check (send-event *conn* 0 root-window
+			 (logior EVENT-MASK-SUBSTRUCTURE-REDIRECT
+				 EVENT-MASK-STRUCTURE-NOTIFY)
+			 event)))))
 
 ;;-----------------------------------------------------------------------------
 ;; win protocol
@@ -10,7 +35,9 @@
 ;; Bufwin is a generic window with an off-screen buffer.
 (defstruct (win-base (:include container) (:conc-name win-) (:constructor make-win-base%))
   (id 0 :type U32)
-  (moved nil :type t)  (resized nil :type t) 
+  ;; In order to track resizing events, we need this...
+  (moved nil :type t)
+  (resized nil :type t) 
   (gc 0 :type U32))
 
 
@@ -46,11 +73,11 @@
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
 			      (+ ;;CW-BACK-PIXEL
-			       CW-BIT-GRAVITY  CW-EVENT-MASK   ) vals))
-
-	;; always on top
-)
-	)))
+			       CW-BIT-GRAVITY  CW-EVENT-MASK   )
+			      vals))))))
+;;==============================================================================
+;; make-win... calls this to initialize the Lisp window struct with the actual
+;; XWINDOW using maker...
 (defmethod init-win ((win win-base)  &key maker  &allow-other-keys)
  
   (format t "~%init-instance of ~A "win)
@@ -67,18 +94,16 @@
       
       ;; windows get registered
       (window-register id win)
-      ;; Make it deletable
-      (w-foreign-values (patom :uint32 +WM-DELETE-WINDOW+)
-	(check (change-property *conn* PROP-MODE-REPLACE id +WM-PROTOCOLS+				4 32 1 patom))
-	)
+      (xwin-fix-deletable id) ;; Make it deletable
       ;; GC
       (setf gc (generate-id *conn*))
-      (w-foreign-values (vals :uint32 white-pixel
-			      :uint32 0)
-	(check (create-gc *conn* gc id (+ GC-FOREGROUND    GC-GRAPHICS-EXPOSURES) vals))
-	))
+      (w-foreign-values (vals :uint32 white-pixel :uint32 0)
+	(check (create-gc *conn* gc id (+ GC-FOREGROUND
+					  GC-GRAPHICS-EXPOSURES)
+			  vals))))
 
     (map-window *conn* id)
+
     (format t "mapped")
     (flush *conn*)
     win))
@@ -205,32 +230,12 @@
 ;;
 (defun wintest ()
   (make-win-base 640 480)
-  (sleep 0.1)
+  (xwin-fix-always-on-top (win-id *w*) 1)
+;  (sleep 0.1)
   (events-process)(flush *conn*)
 
  ;; (test-out "Hello World" *w* 20 20 )
   )
-(defun always-on-top (win)
-  ;;
-  (let ((NET-WM-STATE       (easy-atom *conn* "_NET_WM_STATE"))
-	(NET-WM-STATE-ABOVE (easy-atom *conn* "_NET_WM_STATE_ABOVE")))
-    (w-foreign-values (event
-		       :uint8  EVENT-Client-Message
-		       :UINT8  32 ;ICCM
-		       :UINT16 0  ;sequence
-		       window-t (win-id win)
-		       atom-t   NET-WM-STATE ;type
-		       :UINT32 1 ;NET-WM-STATE-ADD
-		       :UINT32 NET-WM-STATE-ABOVE
-		       :UINT32 0
-		       :UINT32 0
-		       :UINT32 0)
-      (check (send-event *conn* 0 root-window
-			 (logior EVENT-MASK-SUBSTRUCTURE-REDIRECT
-				 EVENT-MASK-STRUCTURE-NOTIFY)
-			 event))
-      
-      
-      )))
+
 
 

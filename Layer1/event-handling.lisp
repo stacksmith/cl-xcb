@@ -11,12 +11,19 @@
 
 ;;==========================================================================
 ;; a sensible way to handle event dispatch is jump via a 36-element dispatch
-;; table.  Initially filled with defaults. 
-;;
-;; A single event table is good for the entire connection, as long as we
-;; delay resolving window ids until later...
+;; table.
+
 (defparameter *event-dispatch-table* nil)
 
+;;--------------------------------------------------------------------------
+;; default-event-handler
+;;
+(defun default-event-handler (event)
+  (when *show-unhandled-events*
+    (format *q* "~&[Unhandled event: ~A~&"
+	    (svref events (event-type event))))
+  t )
+;;--------------------------------------------------------------------------
 (defun event-dispatch-reset ()
   (setf *event-dispatch-table*
 	(make-array 36 :initial-element  #'default-event-handler)))
@@ -24,20 +31,11 @@
 ;;==========================================================================
 ;; event-type  pull type out of event
 ;;
-
-
-;;==========================================================================
-;; default  - any unhandled events go here.
-;;
-(defun default-event-handler (event)
-  (when *show-unhandled-events*
-    (format *q* "~&[Unhandled event: ~A~&" (aref events (event-type event))))
-  t )
 ;;------------------------------------------------------------------------------
 ;;
-(defmacro event-type (event)
+(defun event-type (event)
   "return type of event"
-  `(ldb (byte 7 0) (mem-ref ,event :uint8))) ;contained in low 7 bits
+  (ldb (byte 7 0) (mem-ref event :uint8))) ;contained in low 7 bits
 
 (defmacro event-get-handler (i)
   `(aref *event-dispatch-table* ,i))
