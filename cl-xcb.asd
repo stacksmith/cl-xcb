@@ -4,6 +4,7 @@
   :depends-on (#:bordeaux-threads #:cffi #:cffi-libffi #:cl-freetype2)
   :components ((:file "package")
 	       (:file "global")
+	       (:file "lot")
 	       (:file "bindings/libs")
 	       (:file "bindings/xcb")
 	       (:file "bindings/icccm")
