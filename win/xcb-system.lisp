@@ -162,32 +162,34 @@
     (check (fill-rectangles *conn* OP-OVER picture color 1 rect))))
 
 
-
-
-;;=============================================================================
+;;==============================================================================
 ;; comp-string
+;;
 (let ((xbuf (foreign-alloc :UINT8 :count (+ 1024 8) ))) ;; enough for 256 characters
-  (defun comp-string (pic x y penpic string  &optional (start 0)
-						   (end (length string)))
-     ;; set the glyphs
+  (defun comp-string (pic x y penpic string
+		      &optional (start 0)(end (length string)))
     (let ((cnt (- end start)))
-;;      (format t "~%~A ~A ~A" start end cnt) (force-output t)
+      ;;      (format t "~%~A ~A ~A" start end cnt) (force-output t)
+      ;; XCB/XRENDER composite data starts with a header:
       (setf (mem-ref xbuf :UINT32 0) cnt
 	    (mem-ref xbuf :UINT16 4) x 
 	    (mem-ref xbuf :UINT16 6) y )
-      
+      ;; immediately followed by 32-bit glyph indices (UNICODE in our case).
       (loop for i from 8 by 4
 	 for sindex from start below end 
 	 for code = (char-code (char string sindex))
 	 do (setf (mem-ref xbuf :UINT32 i) code)
-	   (glyph-assure *font-normal* code )
-	   )
-;;      (dump xbuf)
+	   (glyph-assure *font-normal* code ))
+      ;;      (dump xbuf)
+      ;; Finally, send XCB request.
       (check (composite-glyphs-32
 	      *conn* OP-OVER
 	      penpic pic
 	      +ARGB32+ (font-glyphset *font-normal*)
 	      0 0 (+ 8 (* 4  cnt)) xbuf)))))
+
+
+
 
 (defun init ()
   (init-xcb)
@@ -199,35 +201,6 @@
   )
 
 
-(defun parse-color (name &optional (alpha #xFFFF))
-  (with-foreign-objects ((r :uint16) (g :uint16) (b :uint16))
-    (let ((result (parse-color% name r g b)))
-      (unless (plusp result)
-	(error "parse-color: '~A' is unknown" name ))
-      (logior (ash alpha 48)
-	      (ash (mem-ref b :uint16) 32)
-	      (ash  (mem-ref g :uint16) 16)
-	      (mem-ref r :uint16)))))
-
-(defun lookup-color (name &optional (alpha #xFFFF))
-  "Lookup an X11 color as ABGR64, mixing in alpha."
-  (with-foreign-slots ((default-colormap) *setup* (:struct screen-t))
-    (let ((cookie (xcb-lookup-color *conn* default-colormap (length name) name)))
-;;      (format t "~%~A... cookie "cookie)
-      (let ((reply (xcb-lookup-color-reply *conn* cookie (null-pointer)))
-	    result)
-	(format t "~%~A... rep "reply)
-	(with-foreign-slots ((exact-red exact-green exact-blue) reply
-			     (:struct lookup-color-reply-t))
-	  (if (null-pointer-p reply)
-	      (error "Lookup-color: '~A' is unknown" name ))
-	  (setf result
-		(logior (ash alpha 48)
-			(ash exact-blue 32)
-			(ash exact-green 16)
-			exact-red))
-	  (foreign-free reply))
-	result))))
 
 
 
@@ -237,7 +210,8 @@
 ;;
 (defun test1 ()
   (make-win-direct 640 480;; :maker #'win-make-window1
-		 )
+		   )
+  (always-on-top *w*)
   (sleep 0.1)
   (events-process)(flush *conn*)
 

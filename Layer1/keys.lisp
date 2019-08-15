@@ -1,13 +1,12 @@
 (in-package :xcb)
 ;; nvim keyboard support
 ;;
-;; long keynames must always send a <..>
-;; 3 cases: regular, shifted, and otherwise-modified.
-;; keynames of >1 must be packed into a <..> form no matter what;
+;; We are processing hardware keycodes here!
+;;
 ;;
 ;;
 ;; *key-code* table contains codes for keys from 0 to 127 for normal and
-;; shifterd representation.  If the code is < 127, it is to be used directly;
+;; shifted representation.  If the code is < 127, it is to be used directly;
 ;; if the high bit is set, the low 7 bits are an index into *key-special* array
 ;; containing a string representation of the key.
 ;;
@@ -19,56 +18,56 @@
 
 (defparameter *key-unshifted*
     (vector
-     nil nil   nil  nil     nil nil   nil  nil
-     nil   "Escape" "1"  "2"     "3" "4"   "5"  "6"
+     nil     nil     nil     nil     nil     nil     nil     nil
+     nil   "Escape"  "1"     "2"     "3"     "4"     "5"     "6"
      ;;10 - 16
-     "7"     "8"   "9"     "0"     "-"     "="   "Backspace"    "Tab"
-     "q"     "w"   "e"     "r"     "t"     "y"   "u"     "i"
+     "7"     "8"     "9"     "0"     "-"     "=" "Backspace" "Tab"
+     "q"     "w"     "e"     "r"     "t"     "y"     "u"     "i"
      ;;20 - 32     ;37=shift-lock
-     "o"     "p"   "["     "]"     "Return" nil   "a"     "s"
-     "d"     "f"   "g"     "h"     "j"     "k"   "l"     ";"
+     "o"     "p"     "["     "]"     "Return" nil    "a"     "s"
+     "d"     "f"     "g"     "h"     "j"     "k"     "l"     ";"
      ;;30 - 48
-     "'"    "`"    nil     "\\"     "z"    "x"    "c"     "v"
-     "b"    "n"    "m"     ","     "."    "/"    nil     "*"
+     "'"     "`"     nil     "\\"    "z"     "x"     "c"     "v"
+     "b"     "n"     "m"     ","     "."     "/"     nil     "*"
      ;;40 - 64 ;left alt, caps-lock
-     nil    " "     nil    "F1"    "F2"   "F3"    "F4"   "F5"
-     "F6"   "F7"    "F8"   "F9"    "F10"  nil     nil    "7"
+     nil     " "     nil     "F1"    "F2"    "F3"    "F4"    "F5"
+     "F6"    "F7"    "F8"    "F9"    "F10"   nil     nil     "7"
      ;;50 - 80
-     "8"    "9"     "-"    "4"     "5"    "6"     "+"    "1"
-     "2"    "3"     "0"    "."     nil nil nil    "F11"
+     "8"     "9"     "-"     "4"     "5"     "6"     "+"     "1"
+     "2"     "3"     "0"     "."     nil     nil     nil     "F11"
      ;;60 - 96
-     "F12"    nil   nil    nil     nil     nil   nil    nil
-     "Return"  nil   "/"    nil     nil    "Linefeed"   "Home" "Up" 
+     "F12"   nil     nil     nil     nil     nil     nil     nil
+    "Return" nil     "/"     nil     nil "Linefeed" "Home"   "Up" 
      ;;70 - 112      
-     "PageUp" "Left"  "Right" "End" "Down" "PageDown" "Insert" "Delete"
+     "PageUp" "Left" "Right" "End" "Down" "PageDown" "Insert" "Delete"
      nil nil nil nil  ;; "macro" "mute" "volumedown" "volumeup"
      nil "=" nil nil  ;; "power"    "kpequal"   "kpplusminus" "pause"
      ))
 
 (defparameter *key-shifted*
     (vector
-     nil nil   nil  nil    nil     nil   nil  nil
-     nil "Esc" "!"  "@"    "#"     "$"   "%"  "^"
+     nil     nil     nil     nil     nil     nil     nil     nil
+     nil     "Esc"   "!"     "@"     "#"     "$"     "%"     "^"
      ;;10 - 16
-     "&"     "*"   "("     ")"     "_"     "+"   "BS"    "Tab"
-     "Q"     "W"   "E"     "R"     "T"     "Y"   "U"     "I"
+     "&"     "*"     "("     ")"     "_"     "+"     "BS"    "Tab"
+     "Q"     "W"     "E"     "R"     "T"     "Y"     "U"     "I"
      ;;20 - 32     
-     "O"     "P"   "{"     "}"     "Return" nil   "A"     "S"
-     "D"     "F"   "G"     "H"     "J"     "K"   "L"     ":"
+     "O"     "P"     "{"     "}"   "Return"  nil     "A"     "S"
+     "D"     "F"     "G"     "H"     "J"     "K"     "L"     ":"
      ;;30 - 48
-     "\""    "~"    nil     "|"    "Z"    "X"   "C"     "V"
-     "B"    "N"    "M"     "LT"    ">"    "?"    nil     "*"
+     "\""    "~"     nil     "|"     "Z"     "X"     "C"     "V"
+     "B"     "N"     "M"     "LT"    ">"     "?"     nil     "*"
      ;;40 - 64
-     nil    "Space" nil    "F1"    "F2"   "F3"    "F4"   "F5"
-     "F6"   "F7"    "F8"   "F9"    "F10"  nil     nil    "7"
+     nil   "Space"   nil     "F1"    "F2"    "F3"    "F4"    "F5"
+     "F6"    "F7"    "F8"    "F9"    "F10"   nil     nil     "7"
      ;;50 - 80
-     "8"    "9"     "-"    "4"     "5"    "6"     "+"    "1"
-     "2"    "3"     "0"    "."     nil nil nil    "F11"
+     "8"     "9"     "-"     "4"     "5"     "6"     "+"     "1"
+     "2"     "3"     "0"     "."     nil     nil     nil     "F11"
      ;;60 - 96
-     "F12"    nil   nil    nil     nil     nil   nil    nil
-     "Return"  nil   "/"    nil     nil    "Linefeed"   "Home" "Up" 
+     "F12"    nil    nil     nil     nil     nil     nil     nil
+     "Return" nil    "/"     nil     nil   "Linefeed" "Home" "Up" 
      ;;70 - 112      
-     "PageUp" "Left"  "Right" "End" "Down" "PageDown" "Insert" "Delete"
+     "PageUp" "Left" "Right" "End" "Down" "PageDown" "Insert" "Delete"
      nil nil nil nil  ;; "macro" "mute" "volumedown" "volumeup"
      nil "=" nil nil  ;; "power"    "kpequal"   "kpplusminus" "pause"
 ))
@@ -76,10 +75,10 @@
 (defparameter *mod-string*
   (make-array 16 :element-type 'string
 	      :initial-contents
-	      '("<"      "<S-"     "<C-"     "<C-S-"
-		"<A-"   "<A-S-"   "<A-C-"   "<A-C-S-"
-		"<T-"   "<T-S-"   "<T-C-"   "<T-C-S-"
-		"<T-A-" "<T-A-S-" "<T-A-C-" "<T-A-C-S-")))
+	      '(    "<"      "<S-"     "<C-"     "<C-S-"
+		  "<A-"    "<A-S-"   "<A-C-"   "<A-C-S-"
+	 	  "<T-"    "<T-S-"   "<T-C-"   "<T-C-S-"
+		"<T-A-"  "<T-A-S-" "<T-A-C-" "<T-A-C-S-")))
 ;; count of bytes in above strings, + 1 for the closer
 
 ;;==============================================================================
@@ -94,8 +93,8 @@
   ;; 0001 shift
   ;; 0010 ctrl
   ;; 0100 alt
-    ;; 1000 win
-  (+ (if (zerop (logand    3 modi)) 0 1)
+  ;; 1000 win
+  (+ (if (zerop (logand 3 modi)) 0 1)
      (ash (logand    4 modi) -1) ;bit 2 goes to bit 1
      (ash (logand    8 modi) -1) ;bit 3 goes to bit 2
      (ash (logand #x40 modi) -3) ;bit 6 goes to bit 3
@@ -111,10 +110,8 @@
     ;; shifted keys with 1-character symbols are considered unshifted
     (when (= 1 (length it))
       (setf mod (logand mod #xFE)))
-    (values it mod) )
+    (values it mod) ))
 
-  
-  )
 (defun key-out (key xmod &optional
 			   (write-start (lambda (length)
 					  (princ length)))

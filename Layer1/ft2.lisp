@@ -17,27 +17,27 @@
 ;; 3-level trie, with a fastpath for ASCII (7-bit).  The trie is filled on
 ;; as-needed basis, and contains advance values for the glyphs.
 ;;
-(defparameter gs nil)
+(defparameter *font-dir* "/usr/share/fonts/truetype/")
 
 ;; missing from ft2 due to old age...
 (defcfun ("FT_Library_SetLcdFilter" set-lcd-filter&) :uint32
   (library ft2::ft-library)
   (filter :uint32))
 
-(defparameter *xcb-context* nil)
-
 (defun ft2init ()
-  (set-lcd-filter& ft2::*library* 1)
-  (setf *xcb-context* *conn*))
+  (set-lcd-filter& ft2::*library* 1))
 
 (defstruct (font(:constructor make-font%))
   face glyphset
   ascender descender underline-position underline-thickness
   glyph-trie ascii )
 
-(defun make-font (&key path w h (hres 85) (yres 88))
+(defun make-font (path w h
+		  &key
+		    (hres 85) (yres 88)
+		    (font-dir *font-dir*))
   (let ((glyphset (generate-id *conn*))
-	(face (ft2:new-face path)))
+	(face (ft2:new-face (concatenate 'string font-dir path))))
     (ft2:set-char-size face w h hres yres)
     (check (create-glyph-set *conn* glyphset +ARGB32+ ))
     
@@ -193,7 +193,7 @@
 	;;(format *q* "WWWWW ~A ~A ~A ~&" (code-char code) (/ advance-x 64) (ft2::get-loaded-advance face nil))
 	(w-foreign-values (pcode :uint32 code)
  	  ;;	(format t "~%added glyph ~A" pcode)
-	  (check (add-glyphs *xcb-context* glyphset  1 pcode  glyphinfo (* 4 w h) x-bitmap)))
+	  (check (add-glyphs *conn* glyphset  1 pcode  glyphinfo (* 4 w h) x-bitmap)))
 	(foreign-free x-bitmap)
 	(foreign-free glyphinfo)
 	;; mark glyph as loaded
@@ -254,11 +254,8 @@
 
 (defun ttt (font gt z)
   (declare (optimize (speed 3) (safety 0) (debug 0)))
-
-  
-
 ;;  (the fixnum (+ 5 (the fixnum (gt-ref font gt z))))
-
-
-      
+    
   )
+
+
