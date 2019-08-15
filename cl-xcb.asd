@@ -17,7 +17,7 @@
 	       (:file "Layer1/ft2")
 	       
 	       (:file "win/fonts")
-	       (:file "win/styles")
+;;	       (:file "win/styles")
 ;;	       (:file "win/chunks")
 ;;	       (:file "win/xbuf")
 	       
