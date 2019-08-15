@@ -208,55 +208,73 @@
 ;; Remove indexed elements with lot-remove (make sure elements are allocated!)
 ;; Removed elements are no longer referred to, and may be GCd.
 ;;
-;; Implementation notes: element 0 is reserved for free list chain.
-(defun make-lot (&optional (alloc-size 8) )
-  (let* ((array (make-array alloc-size :initial-element nil)))
-     (loop for i from (- alloc-size 2) downto 0 do
-	  (setf (svref array i) (1+ i)))
-     array))
+;; A callback is stored at element 1; it is invoked on resize with new size.
+;;
+;; Implementation notes:
+;; - element 0 is reserved for free list chain.
+;; - element 1 is reserved for item count
+;;
+(defstruct lot-index
+  (value 0 :type (unsigned-byte 32)))
+(declaim (sb-ext:freeze-type lot-index))
+
+
+(defun lot-clear (lot)
+  (let ((alloc-size (length lot)))
+    (setf (svref lot (1- alloc-size))  0 ;; final element
+	  (svref lot 0)  2) ;; first available index
+    (loop for i from (- alloc-size 2) downto 2 
+       do (setf (svref lot i) (1+ i)))
+    lot))
+
+(defmacro lot-callback (lot) `(the function (svref ,lot 1)))
+(defun make-lot (&key (alloc-size 8) (callback (lambda (resized newsize)
+						 (declare (ignore resized newsize))
+						 )) )
+  (let* ((lot (make-array alloc-size :initial-element nil)))
+    (lot-clear lot)
+    (setf (lot-callback lot) callback)
+    lot))
 
 (defun lot-adjust (lot)
-  (let* ((old-size (length lot))
-	 (new-size (* old-size 2))
-	 (new (adjust-array lot new-size)))
-    (loop for i from old-size below (1- new-size) do
-	 (setf (svref new i)(1+ i))
-       finally (setf (svref new i) nil
-		     (svref new 0) old-size))
-    new)
-  )
-;; A lot may need resizing, in which case a new array may be returned!
-(declaim (inline lot-prepare))
-(defun lot-prepare (lot)
+  "Adjust the lot size up, and return values lot and next index"
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
   (declare (type simple-vector lot))
-  (if  (svref lot 0)
-      (lot-adjust lot)
-      lot))
-(declaim (inline lot-store))
+  (let* ((old-size (the fixnum (length lot)))
+	 (new-size (the fixnum  (* old-size 2)))
+	 (new (the simple-vector (adjust-array lot new-size))))
+
+    (loop for i  from old-size below (1- new-size) do
+	 (setf (svref new i)(1+ i))
+       finally (setf (svref new i) 0
+		     (svref new 0) old-size)) ;;next free
+    (funcall  (lot-callback lot) new new-size)
+    (values new old-size))
+  )
+
+;;------------------------------------------------------------------------------
+(declaim (notinline lot-store))
 (defun lot-store (lot new-element)
   (let ((index (svref lot 0)))
     (declare (type U32 index))
+    (when (zerop index)
+      (mvsetq (lot index) (lot-adjust lot)))
     (shiftf (svref lot 0) (svref lot index) new-element)
     index))
+;;------------------------------------------------------------------------------
 ;; Danger: make sure the index is a real item - allocated and all or death!
-(declaim (inline lot-remove))
+(declaim (notinline lot-remove))
 (defun lot-remove (lot index)
   (declare (type U32 index))
   (declare (type simple-vector lot))
   (shiftf (svref lot index) (svref lot 0) index)
   lot)
 
-(defun lot-clear (lot)
-  (let ((alloc-size (length lot)))
-    (setf (svref lot (1- alloc-size)) nil)
-    (loop for i from (- alloc-size 2) downto 0
-       do (setf (svref lot i) (1+ i)))
-    lot)
-  )
+
 (defun ttt (q r)
   (declare (optimize (speed 3) (safety 0) (debug 0)))
   (declare (type simple-vector q))
   (declare (type U32 r))
-  (lot-remove q r)
+  (lot-store q r)
   
   )

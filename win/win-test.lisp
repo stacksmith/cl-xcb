@@ -81,7 +81,8 @@
 (defun test2 ()
   (make-win-test 640 480;; :maker #'win-make-window1
 		 )
-  (sleep 0.1)
+  (always-on-top *w*)
+  (sleep 0.5)
   (events-process)(flush *conn*)
 
  )

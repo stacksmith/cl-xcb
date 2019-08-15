@@ -285,7 +285,7 @@
 (defcfun("xcb_lookup_color_reply" xcb-lookup-color-reply)
     (:pointer (:struct lookup-color-reply-t))
   (conn        :pointer)
-  (cookie          :UINT32)
-  (err             (:pointer (:struct generic-error-t))))
+  (cookie      :UINT32)
+  (err         (:pointer (:struct generic-error-t))))
 
 

@@ -10,17 +10,20 @@
 	       (:file "bindings/events")
 	       (:file "bindings/xcb-xrender")
 	       (:file "bindings/xcb-util")
-	       (:file "bindings/keys")
+	       ;; Layer1 provides some helpful services
+	       (:file "Layer1/keys")  ;key events are dealt with.
+       	       (:file "Layer1/event-handling")
+	       (:file "Layer1/pens")
+	       (:file "Layer1/ft2")
 	       
-	       (:file "win/ft2")
-	       (:file "win/pens")
 	       (:file "win/fonts")
 	       (:file "win/styles")
 ;;	       (:file "win/chunks")
+;;	       (:file "win/xbuf")
 	       
-	       (:file "win/event-handling")
+
 	       (:file "win/xcb-system")
-	       (:file "win/panels")
+	       (:file "win/panels") 
 ;;	       (:file "win/attributes")
 	       (:file "win/win-base")
 	       (:file "win/win-direct")

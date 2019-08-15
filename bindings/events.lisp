@@ -60,46 +60,50 @@
 (defconstant CW-COLORMAP           #x2000)
 (defconstant CW-CURSOR             #x4000)
 
-
-
+;;==============================================================================
+;; symbolic EVENT-names are kept in a vector for enumeration.  The symbols are
+;; bound as constants to that enumeration.  Thus symbolic constants may be
+;; used for their symbol-value number, and an enumeration n from XCB can be
+;; resolved to a symbol by (aref EVENTS n)
+;;
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconstant EVENT-LAST-Event		36)
+  (defconstant EVENT-LAST-EVENT 	36)
   (defparameter events
-  #(nil nil
-    EVENT-Key-Press		;;    2
+  #(nil nil    ;; 0 and 1 are not used
+    EVENT-Key-Press		;;2
     EVENT-Key-Release		;;3
     EVENT-Button-Press		;;4
-    EVENT-Button-Release	;;5
-    EVENT-Motion-Notify	;;6
+    EVENT-Button-Release    ;;5
+    EVENT-Motion-Notify	        ;;6
     EVENT-Enter-Notify		;;7
     EVENT-Leave-Notify		;;8
     EVENT-Focus-In		;;9
-    EVENT-Focus-Out		;;10
-    EVENT-Keymap-Notify	;;11
+    EVENT-Focus-Out	    ;;10
+    EVENT-Keymap-Notify	        ;;11
     EVENT-Expose		;;12
     EVENT-Graphics-Expose	;;13
     EVENT-No-Expose		;;14
-    EVENT-Visibility-Notify	;;15
-    EVENT-Create-Notify	;;16
+    EVENT-Visibility-Notify ;;15
+    EVENT-Create-Notify	        ;;16
     EVENT-Destroy-Notify	;;17
     EVENT-Unmap-Notify		;;18
     EVENT-Map-Notify		;;19
-    EVENT-Map-Request		;;20
-    EVENT-Reparent-Notify ;;21
+    EVENT-Map-Request	    ;;20
+    EVENT-Reparent-Notify       ;;21
     EVENT-Configure-Notify	;;22
     EVENT-Configure-Request	;;23
     EVENT-Gravity-Notify	;;24
-    EVENT-Resize-Request	;;25
-    EVENT-Circulate-Notify	;;26
+    EVENT-Resize-Request    ;;25
+    EVENT-Circulate-Notify      ;;26
     EVENT-Circulate-Request	;;27
     EVENT-Property-Notify	;;28
     EVENT-Selection-Clear	;;29
-    EVENT-Selection-Request	;;30
-    EVENT-Selection-Notify	;;31
+    EVENT-Selection-Request ;;30
+    EVENT-Selection-Notify      ;;31
     EVENT-Colormap-Notify	;;32
     EVENT-Client-Message	;;33
     EVENT-Mapping-Notify	;;34
-    EVENT-Generic-Event	;;35
+    EVENT-Generic-Event	    ;;35
     ))
 
   (defmacro create-event-names ()
@@ -112,7 +116,7 @@
 
 
 ;;==============================================================================
-;; EVENT STRUCTURES - ES prefix
+;; EVENT STRUCTURES - ES prefix                
 ;;
 (defcstruct ES-generic
   (response-type  :uint8)
@@ -333,66 +337,14 @@
   (pad0           :uint8 :count 22)
   (full-sequence  :uint32))
 
-
-;; A lispier layer...
+;;==============================================================================
+;; Functions
 ;;
-#||(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconstant EVENT-LAST-Event		36)
-  (defparameter events
-  #(nil nil
-    EVENT-Key-Press		;;    2
-    EVENT-Key-Release		;;3
-    EVENT-Button-Press		;;4
-    EVENT-Button-Release	;;5
-    EVENT-Motion-Notify	;;6
-    EVENT-Enter-Notify		;;7
-    EVENT-Leave-Notify		;;8
-    EVENT-Focus-In		;;9
-    EVENT-Focus-Out		;;10
-    EVENT-Keymap-Notify	;;11
-    EVENT-Expose		;;12
-    EVENT-Graphics-Expose	;;13
-    EVENT-No-Expose		;;14
-    EVENT-Visibility-Notify	;;15
-    EVENT-Create-Notify	;;16
-    EVENT-Destroy-Notify	;;17
-    EVENT-Unmap-Notify		;;18
-    EVENT-Map-Notify		;;19
-    EVENT-Map-Request		;;20
-    EVENT-Reparent-Notify	;;21
-    EVENT-Configure-Notify	;;22
-    EVENT-Configure-Request	;;23
-    EVENT-Gravity-Notify	;;24
-    EVENT-Resize-Request	;;25
-    EVENT-Circulate-Notify	;;26
-    EVENT-Circulate-Request	;;27
-    EVENT-Property-Notify	;;28
-    EVENT-Selection-Clear	;;29
-    EVENT-Selection-Request	;;30
-    EVENT-Selection-Notify	;;31
-    EVENT-Colormap-Notify	;;32
-    EVENT-Client-Message	;;33
-    EVENT-Mapping-Notify	;;34
-    EVENT-Generic-Event	;;35
-    ))
-
-  (defmacro create-event-names ()
-    `(progn
-       ,@(loop for event-name across events
-	    for i from 2 below EVENT-LAST-EVENT 
-	    collecting `(xdefconstant ,(aref events i) ,i ))))
-  
-  (create-event-names))
-||#
-
-
 (defcfun ("xcb_wait_for_event" wait-for-event) :pointer
   (c        :pointer))
 
 (defcfun ("xcb_poll_for_event" poll-for-event) :pointer
   (c        :pointer))
-
-
 
 (defcfun ("xcb_key_symbols_alloc" key-symbols-alloc) :pointer
   (c        :pointer))

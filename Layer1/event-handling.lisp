@@ -13,8 +13,8 @@
 ;; a sensible way to handle event dispatch is jump via a 36-element dispatch
 ;; table.  Initially filled with defaults. 
 ;;
-;; The event table is good for the entire connection.
-;; resolve window ids to Lisp windows
+;; A single event table is good for the entire connection, as long as we
+;; delay resolving window ids until later...
 (defparameter *event-dispatch-table* nil)
 
 (defun event-dispatch-reset ()
@@ -72,6 +72,7 @@
   ;;     (nv:vin)
        (sleep 0.1)))
 
+;;TODO: fix assumptions abount windows, or move up to a higher level
 (defun event-loop ()
   (loop until (zerop (hash-table-count windows)) do
        (event-step t)))
