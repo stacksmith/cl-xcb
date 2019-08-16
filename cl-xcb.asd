@@ -17,19 +17,27 @@
 	       (:file "Layer1/pens")
 	       (:file "Layer1/ft2")
 	       
-	       (:file "win/fonts")
+;;	       (:file "win/fonts")
 ;;	       (:file "win/styles")
 ;;	       (:file "win/chunks")
 ;;	       (:file "win/xbuf")
 	       
 
-	       (:file "win/xcb-system")
-	       (:file "win/panels") 
-;;	       (:file "win/attributes")
-	       (:file "win/win-base")
-	       (:file "win/win-direct")
-	       (:file "win/win-test")
+;;	       (:file "win/xcb-system")
+;;	       (:file "win/panels") 
+;;	       (:file "win/win-base")
+;;	       (:file "win/win-direct")
+;;	       (:file "win/win-test")
 
+	       (:file "Layer2/fonts")
+	       (:file "Layer2/xcb-setup")
+	       (:file "Layer2/win-registry")
+	       (:file "Layer2/geo")
+	       (:file "Layer2/xwin-util")
+	       (:file "Layer2/event-subsystem")
+	       (:file "Layer2/protowin")
+	       
+	       
 ;;	       (:file "display/attributes")
 ;;	       (:file "display/xbuf")
 ;;	       (:file "display/panel")

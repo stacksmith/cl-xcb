@@ -24,8 +24,8 @@ Freetype2 is used for glyph rendering.  Many Linux distributions come with these
 (ql:quickload :cl-xcb)
 (in-package :xcb)
 (init)
-(test2)
-;; click on go-away and then
+(make-win 640 480)
+;; maybe keep it as a topmost, resize  or  click on go-away and then
 (events-process)
 
 
