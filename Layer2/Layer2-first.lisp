@@ -1,5 +1,11 @@
 (in-package :xcb)
-;; Global XCB data
+;;================================================================================
+#|| LAYER2-FIRST
+
+This is intended to loaded as the first file in layer 2.  
+
+||#
+
 
 (defparameter *conn* nil) ;; xcb connection
 (defparameter *setup* nil) ;; xcb setup
