@@ -36,12 +36,34 @@ Just working...
 
 ### Hacking
 
-### Debug information
+There are three distinct layers, each in its own directory:
 
-For SBCL users, a shell script clean.sh is provided for wiping all fasl files and cache.
+#### Bindings
 
+Here we have actual CFFI bindings, c-structs and constants for xcb, icccm, xrender, and events.  `libs.lisp' code actually loads the libraries.
+
+#### Layer 1
+
+* FreeType2 functionality in `ft2.lisp`, antialiased glyph conversion and storage in a trie.
+* Basic event processing.  
+* Mapping of keys to characters.
+
+#### Layer 2
+
+* Runtime setup and initialization of XCB 
+* A simple default font loader
+* Windows registry
+* Simple Geometry (points, rects)
+* XWIN-UTIL - simple utilities for windowing
+* Event-subsystem - a basic protocol for dispatching events to windows
+* Final initialization step
+
+#### CLEAN.SH
+
+For sbcl/emacs users, a shell script clean.sh is provided for wiping all fasl files and cache (.cache/common-lisp/ keeps often-stale fasls!)
+
+#### DEBUG MODES
 
 Set `*xbug*` t and recompile for debug output.
 Set `*compile-checked*` to t and recompile for checked XCB calls.
-
 
