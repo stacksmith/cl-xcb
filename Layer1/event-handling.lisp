@@ -50,7 +50,8 @@
 (defun event-dispatch (event)
   (declare (type simple-vector *event-dispatch-table* ))
   (let ((i (event-type event)))
-   ;; (format *q* "~%(~A)~A: " ord (aref events i))
+
+   ;; (format *q* "~%evdispatch:(~A) "  (aref events i))
     (if (< i EVENT-LAST-EVENT)
 	(funcall (event-get-handler (logand #x7F i)) event)
 	(progn

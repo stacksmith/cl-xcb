@@ -47,7 +47,7 @@ window id to a lisp object, and dispatch the event to the appropriate object.
 (defun ev-on-resize-request (event)
   (with-foreign-slots ((window width height) event (:struct ES-RESIZE-REQUEST))
     (format t "~%----------EV-ON-RESIZE-REQUEST~~!~~ ~A ~A" width height)
-  ;;  (win-on-resize (lisp-window window) width height)
+    (win-on-resize (winreg-ref window) width height)
     ))
 
 ;;================================================================================
@@ -84,7 +84,8 @@ window id to a lisp object, and dispatch the event to the appropriate object.
   (with-foreign-slots
       (( window event x y width height border-width
 		response-type override-redirect) e (:struct ES-CONFIGURE-NOTIFY))
-    ;; Bit 7 of response-type is set when the notification is global. 
+    ;; Bit 7 of response-type is set when the notification is global.
+;;    (let ((*print-base* 16)) (format t "~%----------EV-ON-CONFIGURE-NOTIFY ~A "response-type))
     (let ((global (logbitp 7 response-type) ))
       (when global
 ;;	(format t "~%----------EV-ON-CONFIGURE-NOTIFY")
