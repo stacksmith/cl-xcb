@@ -1,4 +1,4 @@
-# CL-XCB - WIP
+# CL-XCB - MOVED TO https://github.com/cl-fui/cl-xcb
 
 ## Abstract
 
