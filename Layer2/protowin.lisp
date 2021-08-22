@@ -43,7 +43,7 @@ no EXPOSE messages ever.  We just redraw on resize
 (defun win-create-window-basic (win)
   (with-foreign-slots ((root root-visual) *setup* (:struct screen-t))
     (w-foreign-values (vals
-		       ;; :uint32 0 ; black-pixel; - makes for no expose messages!
+		        :uint32 0 ; black-pixel; - makes for no expose messages!
 			    :uint32 GRAVITY-NORTH-WEST ;; Leave contents on resize.
 			    :uint32 (+ ;;EVENT-MASK-EXPOSURE
 				     EVENT-MASK-STRUCTURE-NOTIFY
@@ -56,7 +56,7 @@ no EXPOSE messages ever.  We just redraw on resize
 			      x. y. w. h. 10
 			      WINDOW-CLASS-INPUT-OUTPUT
 			      root-visual
-			      (+ ;CW-BACK-PIXEL
+			      (+ CW-BACK-PIXEL
 				 CW-BIT-GRAVITY CW-EVENT-MASK)
 			      vals))))))
 
@@ -85,14 +85,14 @@ no EXPOSE messages ever.  We just redraw on resize
   
 
 
-(defmethod win-redraw ((win win) x y w h)
+(defun win-redraw (win)
   (in-rect (q win)
-    (format t "~%WIN-REDRAW, clearing  ~A ~A ~A ~A" 0 0 w. h.)
-;     (clear-area *conn* 0 (win-id win) 0 0 width. height.)
+    (format t "~%WIN-REDRAW, clearing  ~A ~A ~A ~A" x. y. w. h.)
+    ;; (clear-area *conn* 0 (win-id win) x. y. w. h.)
      (w-foreign-values (vals :uint16 0 :uint16 0  :uint16 w. :uint16 h.)
        (check (poly-line *conn* COORD-MODE-ORIGIN (win-id win) (win-gc win) 2 vals)))
      ;; ostensibly, we finished drawing
-     (comp-string (win-pic win) (+ 3 x.) (+ 12 y.) (pen-pic *pen-white*)
+     (comp-string (win-pic win) (+ 3 0) (+ 12 0) (pen-pic *pen-white*)
 		  (format nil "Hellow"))
      
      (xcb::flush *conn*)) )
@@ -148,7 +148,7 @@ no EXPOSE messages ever.  We just redraw on resize
     (when (or (/= ww w)(/= wh h)) ;resized from original w/h ?
       (when (and (= ww oldw)(= wh oldh))
 	(setf w oldw h oldh) ;; update w/h only at end of resize
-	(format t "--FINAL RESIZE")))
+	(win-do-resize win)))
     ;; Always update temporary w/h, and x/y in case we moved...
     (setf oldw ww  oldh wh	  x wx     y wy)))
 
@@ -160,18 +160,12 @@ no EXPOSE messages ever.  We just redraw on resize
   )
 
 ;;==============================================================================
-;; ON-RESIZE  (faked from ON-CONFIGURE-NOTIFY!)
-(defmethod win-on-resize ((win win) w h)
+;; Configure-notify events accumulate resize requests and update w/h
+(defun  win-do-resize (win)
   (in-rect (r win)
-    (format t "~%WIN-ON-RESIZE (from ~A ~A) to  ~A ~A" w. h. w h )
-    (setf w. w h. h))
+    (format t "~%WIN-do-RESIZE ~A ~A" w. h.  ))
   
   
 ;;  (in-geo (q win)    (setf x2. w	  y2. h))
-;;  (win-redraw *w* 0 0 0 0)
+  (win-redraw win)
   )
-#||
-We want to accumulate resize events and process them when:
-* two resize events have identical width/height; 
-* 
-||#

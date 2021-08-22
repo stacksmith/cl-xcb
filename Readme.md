@@ -1,10 +1,26 @@
 # CL-XCB - WIP
 
-This is an experimental, minimal set of CFFI bindings for XCB.  Combined with Freetype2, just enough to output decent antialiased text for texty applications.
+## Abstract
+
+This is an experimental, minimal set of CFFI bindings for XCB, with a specific purpose: combined with Freetype2, this library is just enough to output high-quality antialiased text for texty applications.
+
+It is surprisingly difficult to create simple user-interfaces with Common Lisp: Emacs is generally in the way of talking to the terminal, and most libraries for generating user interfaces are bloated, ugly, and often buggy.  User interface toolkits impose a rigid structure that distorts the application, and the user interface often takes much more time and effort than the original problem being solved.
+
+It is the goal of this project to create a minimal infrastructure for building interfaces that make sense for Lisp applications.
 
 ## About XCB
 
-The underlying library, [XCB](https://xcb.freedesktop.org/), is a replacement for XLIB featuring a much smaller footprint, as well as greatly improved threading support, latency and extensibility.
+The underlying library, [XCB](https://xcb.freedesktop.org/), is a replacement for XLIB featuring a much smaller footprint, as well as greatly improved threading support, latency and extensibility.  
+
+## Implemented:
+
+2019:
+* XCB interface, optional checked calls
+* Event processing with dispatch using generic functions;
+* Window registry, windows with backing store, xrender compositing;
+* Freetype font conversion, glyph trie
+
+Trial by fire: LEM front end - works.
 
 ## Requirements
 
